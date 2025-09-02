@@ -9,11 +9,65 @@ from fastapi import HTTPException
 from typing import List
 
 
+def _apply_column_mapping(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Apply flexible column mapping to handle different CSV formats
+    
+    Maps common column variations to expected column names:
+    - name: Name, contact_name, full_name, person_name
+    - company: Company, Organization, company_name, organization_name, Name (if no other company column)
+    - linkedin_url: LinkedIn, linkedin, linkedin_profile, profile_url, Website (as fallback)
+    
+    Args:
+        df: Input DataFrame
+        
+    Returns:
+        DataFrame with standardized column names
+    """
+    df_copy = df.copy()
+    original_columns = set(df.columns)
+    
+    # Define column mapping rules (case-insensitive)
+    column_mappings = {
+        'name': ['Name', 'contact_name', 'full_name', 'person_name', 'Contact Name', 'Full Name', 'Person Name'],
+        'company': ['Company', 'Organization', 'company_name', 'organization_name', 'Company Name', 'Organization Name'],
+        'linkedin_url': ['LinkedIn', 'linkedin', 'linkedin_profile', 'profile_url', 'LinkedIn Profile', 'Profile URL', 'Website', 'website']
+    }
+    
+    # Apply mappings
+    for target_col, possible_names in column_mappings.items():
+        if target_col not in df_copy.columns:
+            for possible_name in possible_names:
+                # Case-insensitive search
+                matching_cols = [col for col in df_copy.columns if col.lower() == possible_name.lower()]
+                if matching_cols:
+                    df_copy = df_copy.rename(columns={matching_cols[0]: target_col})
+                    break
+    
+    # Special case: If we still don't have 'company' but we have 'Name' in original columns
+    # and no obvious company column, use 'Name' as company (assuming it contains company names)
+    if 'company' not in df_copy.columns and 'Name' in original_columns:
+        # Check if there's no obvious company column in the original data
+        company_like_columns = ['Company', 'Organization', 'company_name', 'organization_name', 'Company Name', 'Organization Name']
+        has_company_column = any(col for col in original_columns for company_col in company_like_columns if col.lower() == company_col.lower())
+        
+        if not has_company_column:
+            # Use the mapped 'name' column as company (since 'Name' was mapped to 'name')
+            if 'name' in df_copy.columns:
+                df_copy['company'] = df_copy['name']
+    
+    # If still missing linkedin_url, create empty column (since it's required but might be missing)
+    if 'linkedin_url' not in df_copy.columns:
+        df_copy['linkedin_url'] = ''  # Empty string as placeholder
+    
+    return df_copy
+
+
 def validate_and_enhance_csv(df: pd.DataFrame) -> pd.DataFrame:
     """
     Validate CSV columns and add missing optional columns with defaults
     
-    Required columns: name, company, linkedin_url
+    Required columns: name, company, linkedin_url (with flexible mapping)
     Optional columns: intelligence (defaults to False), template_type (defaults to None)
     
     Args:
@@ -25,7 +79,10 @@ def validate_and_enhance_csv(df: pd.DataFrame) -> pd.DataFrame:
     Raises:
         HTTPException: If required columns are missing
     """
-    # Validate required columns
+    # Apply column mapping to handle different CSV formats
+    df = _apply_column_mapping(df)
+    
+    # Validate required columns after mapping
     required_columns = ['name', 'company', 'linkedin_url']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:

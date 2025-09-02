@@ -19,6 +19,7 @@ A production-ready FastAPI application that generates personalized outreach emai
 - **Full Database Persistence**: PostgreSQL with comprehensive tracking
 - **Real-time Streaming**: Server-Sent Events for live progress updates
 - **Request Management**: Complete request lifecycle with status tracking
+- **SixtyFour API Integration**: Company enrichment data for personalized emails
 
 ### Frontend Features
 - **Modern Web Interface**: Two-page application with drag-and-drop uploads
@@ -82,6 +83,7 @@ make up-alpine
 - **Mixed Mode**: Single CSV can contain both types
 - **All Background**: No blocking - immediate response with placeholders
 - **Full Persistence**: Everything stored in PostgreSQL for analytics
+- **SixtyFour API**: Company enrichment data for personalized emails
 
 ### 3. Web Interface
 - **Upload Page** (`/`): Drag-and-drop CSV upload with live progress
@@ -165,6 +167,10 @@ FROM generated_emails GROUP BY template_type;
 # Required
 OPENAI_API_KEY=sk-your-api-key-here
 
+# SixtyFour API (for company enrichment)
+SIXTYFOUR_API_KEY=api_rsaNdiPCpBrpGPUMqLx43mMEqWmhLZNN
+SIXTYFOUR_API_BASE_URL=https://api.sixtyfour.ai
+
 # Optional Processing Settings
 BATCH_SIZE=100                    # Template processing batch size
 INTELLIGENCE_BATCH_SIZE=5         # AI processing batch size  
@@ -178,13 +184,16 @@ DB_PASSWORD=secure_email_password_123
 ```
 
 ### Available Templates
-- `sales_outreach` - B2B lead generation (default)
+- `sales_outreach` - B2B lead generation
 - `recruitment` - Talent acquisition
 - `networking` - Professional connections
 - `partnership` - Business partnerships
 - `follow_up` - Re-engagement
 - `introduction` - Warm introductions
 - `cold_email` - Initial outreach
+- `lucas` - Sound Ventures VC outreach (default)
+- `lexie` - Alternative VC outreach
+- `zach` - Alternative VC outreach
 
 ## Docker Management
 
@@ -218,7 +227,8 @@ docker-compose -f docker/docker-compose.yml up -d
 │   ├── database/               # PostgreSQL models & services
 │   ├── main.py                 # API routes & SSE endpoints
 │   ├── ai_generator.py         # OpenAI integration
-│   └── templates.py            # Email template management
+│   ├── templates.py            # Email template management
+│   └── sixtyfour_api.py        # SixtyFour API integration
 ├── ui/                         # Web frontend (2 pages)
 │   ├── index.html              # Upload & processing interface
 │   └── history.html            # Request history & analytics
@@ -304,6 +314,7 @@ make logs-all       # All services
 - Full database persistence and analytics
 - Comprehensive API with SSE streaming
 - Professional Docker deployment
+- SixtyFour API integration for company enrichment
 
 **Business Benefits:**
 - Scale personalized outreach efficiently  
@@ -313,3 +324,4 @@ make logs-all       # All services
 - Cost-effective LLM utilization
 
 This is a complete, production-ready system - not a prototype or MVP. Your team can deploy it immediately and start generating personalized emails at scale.
+

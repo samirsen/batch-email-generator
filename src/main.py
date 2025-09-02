@@ -1,3 +1,4 @@
+import traceback
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, AsyncGenerator
@@ -672,6 +673,7 @@ async def upload_and_process(
     except Exception as e:
         # Log the full error for debugging while returning safe message to user
         print(f"Unexpected error in upload_and_process: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, 
             detail=f"Internal server error occurred while processing your request. Please try again or contact support if the issue persists."

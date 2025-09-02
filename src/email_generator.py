@@ -9,13 +9,14 @@ import time
 import os
 import pandas as pd
 from jinja2 import Template
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from .templates import TemplateType, get_template_content
 from .linkedin_research import research_linkedin_profile
 from .ai_generator import generate_ai_email, generate_ai_email_from_template
 from .utils import create_batches
 from .database.services import GeneratedEmailService
+from .sixtyfour_api import get_email_variables
 
 
 # Configuration
@@ -63,33 +64,20 @@ def save_batch_to_database(request_id: str, batch_results: dict, original_df: pd
         # Don't raise - processing should continue even if database save fails
 
 
-def render_email_template(template_str: str, name: str, company: str, linkedin_url: str) -> str:
+async def render_email_template(template_str: str, context: Dict[str, Any]) -> str:
     """
-    Render an email template with provided data
+    Render an email template with provided data using Jinja2
     
     Args:
         template_str: Jinja2 template string
-        name: Contact's name
-        company: Contact's company
-        linkedin_url: Contact's LinkedIn URL
+        context: Dictionary of variables for template rendering
         
     Returns:
         Rendered email content
     """
     try:
-        from .utils import get_random_agent_info
-        
-        # Get random agent information
-        agent_info = get_random_agent_info()
-        
         template = Template(template_str)
-        return template.render(
-            name=name,
-            company=company,
-            linkedin_url=linkedin_url,
-            agent_name=agent_info['agent_name'],
-            company_name=agent_info['company_name']
-        ).strip()
+        return template.render(**context).strip()
     except Exception as e:
         return f"Error rendering template: {str(e)}"
 
@@ -145,26 +133,51 @@ async def generate_intelligent_email(row: pd.Series, fallback_template_type: Opt
         else:
             template_type = fallback_template_type
         
-        template_type_str = template_type.value if template_type else 'sales_outreach'
+        template_type_str = template_type.value if template_type else 'lucas'
         
-        # Generate fake LinkedIn research
-        research_result = await research_linkedin_profile(
-            name=user_info['name'], 
-            company=user_info['company'], 
-            linkedin_url=user_info['linkedin_url']
-        )
-        
-        # Generate AI email
-        ai_result = await generate_ai_email(research_result, user_info, template_type_str)
-        
-        if ai_result.status.value == "success":
-            return ai_result.email_content or "[AI generation succeeded but no content returned]"
+        # If using Lucas template, get company enrichment data
+        if template_type_str == 'lucas':
+            # Get company data from SixtyFour API
+            company_data = await get_email_variables(user_info['company'])
+            
+            # Get template content
+            template_content = get_template_content(template_type)
+            
+            # Prepare context for template rendering
+            context = {
+                'name': user_info['name'],
+                'company_name': user_info['company'],
+                'app_layer': company_data.get('app_layer', False),
+                'company_vertical': company_data.get('company_vertical', 'technology'),
+                'one_liner': company_data.get('one_liner', 'Congrats on everything to-date.'),
+                'portfolio_companies': company_data.get('portfolio_companies', 'Airbnb, Spotify, and Uber'),
+                'include_tldr': company_data.get('include_tldr', False),
+                'tldr_block': company_data.get('tldr_block', '')
+            }
+            
+            # Render the template with the context
+            email_content = await render_email_template(template_content, context)
+            return email_content
         else:
-            if AI_FALLBACK_TO_TEMPLATE:
-                print(f"AI generation failed ({ai_result.error_message}), falling back to template for {user_info['name']}")
-                return await generate_template_email(row, fallback_template_type)
+            # For other templates, use the original AI generation logic
+            # Generate fake LinkedIn research
+            research_result = await research_linkedin_profile(
+                name=user_info['name'], 
+                company=user_info['company'], 
+                linkedin_url=user_info['linkedin_url']
+            )
+            
+            # Generate AI email
+            ai_result = await generate_ai_email(research_result, user_info, template_type_str)
+            
+            if ai_result.status.value == "success":
+                return ai_result.email_content or "[AI generation succeeded but no content returned]"
             else:
-                return f"AI generation failed: {ai_result.error_message}"
+                if AI_FALLBACK_TO_TEMPLATE:
+                    print(f"AI generation failed ({ai_result.error_message}), falling back to template for {user_info['name']}")
+                    return await generate_template_email(row, fallback_template_type)
+                else:
+                    return f"AI generation failed: {ai_result.error_message}"
     
     except Exception as e:
         if AI_FALLBACK_TO_TEMPLATE:
@@ -205,20 +218,44 @@ async def generate_template_email(row: pd.Series, fallback_template_type: Option
         }
         
         # Get template type as string for LLM prompt
-        template_type_str = template_type.value if template_type else 'sales_outreach'
+        template_type_str = template_type.value if template_type else 'lucas'
         
-        # Use LLM to generate email based on template (no LinkedIn research)
-        ai_result = await generate_ai_email_from_template(user_info, template_type_str)
-        
-        if ai_result.status.value == "success":
-            return ai_result.email_content or "[Template LLM generation succeeded but no content returned]"
+        # If using Lucas template, get company enrichment data
+        if template_type_str == 'lucas':
+            # Get company data from SixtyFour API
+            company_data = await get_email_variables(user_info['company'])
+            
+            # Get template content
+            template_content = get_template_content(template_type)
+            
+            # Prepare context for template rendering
+            context = {
+                'name': user_info['name'],
+                'company_name': user_info['company'],
+                'app_layer': company_data.get('app_layer', False),
+                'company_vertical': company_data.get('company_vertical', 'technology'),
+                'one_liner': company_data.get('one_liner', 'Congrats on everything to-date.'),
+                'portfolio_companies': company_data.get('portfolio_companies', 'Airbnb, Spotify, and Uber'),
+                'include_tldr': company_data.get('include_tldr', False),
+                'tldr_block': company_data.get('tldr_block', '')
+            }
+            
+            # Render the template with the context
+            email_content = await render_email_template(template_content, context)
+            return email_content
         else:
-            # Fallback to static template if LLM fails
-            if AI_FALLBACK_TO_TEMPLATE:
-                print(f"Template LLM generation failed ({ai_result.error_message}), falling back to static template for {user_info['name']}")
-                return await generate_static_template_email(row, fallback_template_type)
+            # Use LLM to generate email based on template (no LinkedIn research)
+            ai_result = await generate_ai_email_from_template(user_info, template_type_str)
+            
+            if ai_result.status.value == "success":
+                return ai_result.email_content or "[Template LLM generation succeeded but no content returned]"
             else:
-                return f"Template LLM generation failed: {ai_result.error_message}"
+                # Fallback to static template if LLM fails
+                if AI_FALLBACK_TO_TEMPLATE:
+                    print(f"Template LLM generation failed ({ai_result.error_message}), falling back to static template for {user_info['name']}")
+                    return await generate_static_template_email(row, fallback_template_type)
+                else:
+                    return f"Template LLM generation failed: {ai_result.error_message}"
     
     except Exception as e:
         if AI_FALLBACK_TO_TEMPLATE:
@@ -253,22 +290,46 @@ async def generate_static_template_email(row: pd.Series, fallback_template_type:
         
         # Get template content for this specific row
         template_content = get_template_content(template_type)
-        template = Template(template_content)
         
-        # Get random agent information
-        from .utils import get_random_agent_info
-        agent_info = get_random_agent_info()
-        
-        # Convert row to dict for template rendering
-        context = {
+        # Create user info
+        user_info = {
             'name': str(row.get('name', '')),
             'company': str(row.get('company', '')),
-            'linkedin_url': str(row.get('linkedin_url', '')),
-            'agent_name': agent_info['agent_name'],
-            'company_name': agent_info['company_name']
+            'linkedin_url': str(row.get('linkedin_url', ''))
         }
         
+        # If using Lucas template, get company enrichment data
+        if template_type.value == 'lucas':
+            # Get company data from SixtyFour API
+            company_data = await get_email_variables(user_info['company'])
+            
+            # Prepare context for template rendering
+            context = {
+                'name': user_info['name'],
+                'company_name': user_info['company'],
+                'app_layer': company_data.get('app_layer', False),
+                'company_vertical': company_data.get('company_vertical', 'technology'),
+                'one_liner': company_data.get('one_liner', 'Congrats on everything to-date.'),
+                'portfolio_companies': company_data.get('portfolio_companies', 'Airbnb, Spotify, and Uber'),
+                'include_tldr': company_data.get('include_tldr', False),
+                'tldr_block': company_data.get('tldr_block', '')
+            }
+        else:
+            # For other templates, use the original context
+            from .utils import get_random_agent_info
+            agent_info = get_random_agent_info()
+            
+            # Convert row to dict for template rendering
+            context = {
+                'name': user_info['name'],
+                'company': user_info['company'],
+                'linkedin_url': user_info['linkedin_url'],
+                'agent_name': agent_info['agent_name'],
+                'company_name': agent_info['company_name']
+            }
+        
         # Render template with context
+        template = Template(template_content)
         email_content = template.render(**context)
         return email_content.strip()
     
@@ -395,3 +456,4 @@ async def process_template_dataframe(template_df: pd.DataFrame, fallback_templat
     print(f"  TEMPLATE LLM TASK COMPLETED: {len(results)} emails in {total_template_time:.2f}s")
     
     return results
+
