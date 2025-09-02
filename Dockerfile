@@ -1,42 +1,43 @@
-# Multi-stage build for optimized production image
-FROM python:3.11-slim as builder
+# Alpine-based Dockerfile (bypasses Debian repository issues)
+FROM python:3.11-alpine as builder
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for building
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    ca-certificates \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Install build dependencies for Alpine
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    g++ \
+    musl-dev \
+    postgresql-dev \
+    libffi-dev \
+    openssl-dev \
+    && apk add --no-cache \
+    curl \
+    ca-certificates
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Production stage
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libpq5 \
+RUN apk add --no-cache \
+    postgresql-libs \
     curl \
-    ca-certificates \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates
 
 # Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S appuser -G appuser
 
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
@@ -50,7 +51,6 @@ RUN mkdir -p /app/uploads /app/temp /app/logs
 
 # Set permissions
 RUN chown -R appuser:appuser /app
-RUN chmod +x docker-entrypoint.sh
 
 # Switch to non-root user
 USER appuser
@@ -67,8 +67,5 @@ ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Use entrypoint script
-ENTRYPOINT ["./docker-entrypoint.sh"]
-
-# Default command
+# Direct command without entrypoint for simplicity
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
