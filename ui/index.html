@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Generator - Batch Processing</title>
+    <style>
+        :root {
+            --primary-color: #00D4AA;
+            --primary-dark: #00B894;
+            --primary-light: #00E6B8;
+            --success-color: #00D4AA;
+            --error-color: #ff6b6b;
+            --warning-color: #feca57;
+            --gray-50: #fafbfc;
+            --gray-100: #f1f3f4;
+            --gray-200: #e8eaed;
+            --gray-300: #dadce0;
+            --gray-400: #9aa0a6;
+            --gray-500: #5f6368;
+            --gray-600: #3c4043;
+            --gray-700: #202124;
+            --gray-800: #1a1a1a;
+            --gray-900: #000000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--gray-50);
+            color: var(--gray-700);
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            padding: 1.25rem 0;
+            margin-bottom: 2.5rem;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            letter-spacing: -0.02em;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2.5rem;
+            align-items: start;
+        }
+
+        .upload-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 25px -4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02);
+            height: fit-content;
+            border: 1px solid var(--gray-100);
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 25px -4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02);
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--gray-100);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--gray-900);
+            letter-spacing: -0.025em;
+            line-height: 1.2;
+        }
+
+        .form-group {
+            margin-bottom: 1.75rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            font-size: 0.875rem;
+            background-color: white;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1);
+            background-color: white;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(0, 212, 170, 0.25);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            box-shadow: 0 6px 20px 0 rgba(0, 212, 170, 0.35);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            background-color: var(--gray-300);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--gray-50);
+            box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .progress-card {
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.03) 0%, rgba(0, 212, 170, 0.06) 100%);
+            border: 1px solid rgba(0, 212, 170, 0.15);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .progress-title {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .progress-stats {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 50px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            transition: width 0.3s ease;
+            border-radius: 50px;
+            box-shadow: 0 2px 8px rgba(0, 212, 170, 0.3);
+        }
+
+        .status-badge {
+            padding: 0.375rem 1rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-processing {
+            background-color: rgba(0, 212, 170, 0.15);
+            color: var(--primary-color);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+        }
+
+        .status-completed {
+            background-color: rgba(0, 212, 170, 0.15);
+            color: var(--success-color);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+        }
+
+        .status-error {
+            background-color: rgba(255, 107, 107, 0.15);
+            color: var(--error-color);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--gray-500);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.3;
+            color: var(--gray-400);
+        }
+
+        .email-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+        }
+
+        .email-item {
+            border: 1px solid var(--gray-100);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .email-item:hover {
+            border-color: rgba(0, 212, 170, 0.2);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .email-item.success {
+            border-left: 4px solid var(--success-color);
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.02) 0%, rgba(0, 212, 170, 0.04) 100%);
+        }
+
+        .email-item.error {
+            border-left: 4px solid var(--error-color);
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.02) 0%, rgba(255, 107, 107, 0.04) 100%);
+        }
+
+        .email-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 0.75rem;
+        }
+
+        .email-name {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .email-company {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+
+        .email-meta {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-bottom: 0.875rem;
+            line-height: 1.4;
+        }
+
+        .email-content {
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: var(--gray-700);
+            background: rgba(0, 212, 170, 0.03);
+            padding: 1.25rem;
+            border-radius: 10px;
+            max-height: 120px;
+            overflow-y: auto;
+            margin-top: 0.75rem;
+            border: 1px solid rgba(0, 212, 170, 0.08);
+        }
+
+        .download-section {
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--gray-200);
+            margin-top: auto;
+            padding-top: 2rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .spinner {
+            border: 2px solid var(--gray-200);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* File Upload Styles */
+        .file-upload-container {
+            width: 100%;
+        }
+
+        .file-input-hidden {
+            display: none;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed var(--gray-200);
+            border-radius: 16px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.02) 0%, rgba(0, 212, 170, 0.05) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-drop-zone:hover {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.05) 0%, rgba(0, 212, 170, 0.1) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.15);
+        }
+
+        .file-drop-zone.drag-over {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.1) 0%, rgba(0, 212, 170, 0.15) 100%);
+            transform: scale(1.02);
+            box-shadow: 0 12px 35px rgba(0, 212, 170, 0.25);
+        }
+
+        .file-upload-content {
+            pointer-events: none;
+        }
+
+        .file-upload-icon {
+            margin-bottom: 1rem;
+            color: var(--gray-400);
+            transition: color 0.3s ease;
+        }
+
+        .file-upload-icon svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .file-drop-zone:hover .file-upload-icon {
+            color: var(--primary-color);
+        }
+
+        .file-upload-text {
+            margin-bottom: 0.75rem;
+        }
+
+        .file-upload-primary {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .file-drop-zone:hover .file-upload-primary {
+            color: var(--gray-900);
+        }
+
+        .file-upload-secondary {
+            font-size: 0.875rem;
+            color: var(--gray-500);
+        }
+
+        .file-upload-browse {
+            color: var(--primary-color);
+            font-weight: 600;
+            text-decoration: underline;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .file-upload-browse:hover {
+            color: var(--primary-dark);
+        }
+
+        .file-upload-specs {
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            margin-top: 0.75rem;
+        }
+
+        .file-drop-zone.file-selected {
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.08) 0%, rgba(0, 212, 170, 0.12) 100%);
+            border-color: var(--primary-color);
+        }
+
+        .file-drop-zone.file-selected .file-upload-icon {
+            color: var(--success-color);
+        }
+
+        .file-drop-zone.file-selected .file-upload-primary {
+            color: var(--gray-900);
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .upload-section,
+            .results-section {
+                padding: 1.5rem;
+            }
+
+            .file-drop-zone {
+                padding: 1.5rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">Email Generator</div>
+            <nav style="display: flex; gap: 2rem; align-items: center;">
+                <a href="index.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Upload & Process</a>
+                <a href="history.html" style="color: var(--gray-600); text-decoration: none; font-weight: 500; transition: color 0.2s ease;" onmouseover="this.style.color='var(--primary-color)'" onmouseout="this.style.color='var(--gray-600)'">Request History</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="main-content">
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <h2 class="section-title">Upload & Process</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">CSV File</label>
+                    <div class="file-upload-container">
+                        <input type="file" id="csvFile" class="file-input-hidden" accept=".csv">
+                        <div id="fileDropZone" class="file-drop-zone">
+                            <div class="file-upload-content">
+                                <div class="file-upload-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.89 22 5.99 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </div>
+                                <div class="file-upload-text">
+                                    <div class="file-upload-primary" id="uploadPrimaryText">Drop your CSV file here</div>
+                                    <div class="file-upload-secondary" id="uploadSecondaryText">or <span class="file-upload-browse">browse files</span></div>
+                                </div>
+                                <div class="file-upload-specs" id="uploadSpecs">
+                                    CSV files up to 10MB • Contact information required
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="templateType">Email Template</label>
+                    <select id="templateType" class="form-input">
+                        <option value="sales_outreach">Sales Outreach</option>
+                        <option value="recruitment">Recruitment</option>
+                        <option value="networking">Networking</option>
+                        <option value="partnership">Partnership</option>
+                        <option value="follow_up">Follow Up</option>
+                        <option value="introduction">Introduction</option>
+                        <option value="cold_email">Cold Email</option>
+                    </select>
+                </div>
+
+                <button id="uploadBtn" class="btn btn-primary" onclick="uploadAndProcess()">
+                    <span id="uploadBtnText">Start Processing</span>
+                    <div id="uploadSpinner" class="spinner hidden"></div>
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <h2 class="section-title">Processing Results</h2>
+                
+                <!-- Progress Card -->
+                <div id="progressCard" class="progress-card hidden">
+                    <div class="progress-header">
+                        <div class="progress-title">Processing Emails</div>
+                        <span id="statusBadge" class="status-badge status-processing">Processing</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="progressStats" class="progress-stats">
+                        0 of 0 emails processed
+                    </div>
+                </div>
+
+                <!-- Download Section -->
+                <div id="downloadSection" class="download-section hidden">
+                    <button id="downloadBtn" class="btn btn-secondary" onclick="downloadResults()">
+                        Download Results CSV
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-state-icon">@</div>
+                    <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--gray-700);">
+                        No processing started yet
+                    </div>
+                    <div style="font-size: 0.9rem; color: var(--gray-500);">
+                        Upload a CSV file to begin processing emails
+                    </div>
+                </div>
+
+                <!-- Email Results -->
+                <div id="emailResults" class="hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--gray-200);">
+                        <h3 style="font-weight: 600; margin: 0; color: var(--gray-900);">Generated Emails</h3>
+                        <div id="emailCount" style="font-size: 0.875rem; color: var(--gray-500); font-weight: 500;">
+                            0 emails
+                        </div>
+                    </div>
+                    <div id="emailList" class="email-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        let eventSource = null;
+        let currentRequestId = null;
+        let completedEmails = 0;
+        let failedEmails = 0;
+        let totalEmails = 0;
+        let isProcessing = false;
+
+        // Modern file upload functionality
+        const fileInput = document.getElementById('csvFile');
+        const dropZone = document.getElementById('fileDropZone');
+        const fileUploadContent = dropZone.querySelector('.file-upload-content');
+        const uploadPrimaryText = document.getElementById('uploadPrimaryText');
+        const uploadSecondaryText = document.getElementById('uploadSecondaryText');
+        const uploadSpecs = document.getElementById('uploadSpecs');
+
+        // Ensure proper initial state on page load
+        function initializeFileUpload() {
+            fileInput.value = '';
+            dropZone.classList.remove('file-selected');
+            uploadPrimaryText.textContent = 'Drop your CSV file here';
+            uploadSecondaryText.innerHTML = 'or <span class="file-upload-browse">browse files</span>';
+            uploadSpecs.textContent = 'CSV files up to 10MB • Contact information required';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFileUpload();
+        });
+
+        // Also initialize immediately in case DOMContentLoaded already fired
+        initializeFileUpload();
+
+        // Handle drag and drop
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelection(files[0]);
+            }
+        });
+
+        // Handle click to browse
+        dropZone.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // Handle file input change
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                handleFileSelection(e.target.files[0]);
+            }
+        });
+
+        // Handle double-click to clear selection
+        dropZone.addEventListener('dblclick', function(e) {
+            if (dropZone.classList.contains('file-selected')) {
+                clearFileSelection();
+            }
+        });
+
+        function handleFileSelection(file) {
+            if (file && file.type === 'text/csv') {
+                // Update drop zone to show selected file
+                dropZone.classList.add('file-selected');
+                uploadPrimaryText.textContent = file.name;
+                uploadSecondaryText.textContent = formatFileSize(file.size) + ' • CSV file selected';
+                uploadSpecs.textContent = 'Double-click to remove and select a different file';
+                
+                // Reset any error styling
+                dropZone.style.borderColor = '';
+                dropZone.style.background = '';
+            } else {
+                alert('Please select a valid CSV file');
+                clearFileSelection();
+            }
+        }
+
+        function clearFileSelection() {
+            // Reset to initial state
+            initializeFileUpload();
+            
+            // Reset any error styling
+            dropZone.style.borderColor = '';
+            dropZone.style.background = '';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function disableUploadUI() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            const templateSelect = document.getElementById('templateType');
+            
+            // Disable upload button and form elements
+            uploadBtn.disabled = true;
+            templateSelect.disabled = true;
+            fileInput.disabled = true;
+            
+            // Disable drop zone interactions
+            dropZone.style.pointerEvents = 'none';
+            dropZone.style.opacity = '0.6';
+            
+            // Update button state
+            document.getElementById('uploadBtnText').textContent = 'Processing in Progress...';
+        }
+
+        function enableUploadUI() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadBtnText = document.getElementById('uploadBtnText');
+            const uploadSpinner = document.getElementById('uploadSpinner');
+            const templateSelect = document.getElementById('templateType');
+            
+            // Re-enable upload button and form elements
+            uploadBtn.disabled = false;
+            templateSelect.disabled = false;
+            fileInput.disabled = false;
+            
+            // Re-enable drop zone interactions
+            dropZone.style.pointerEvents = 'auto';
+            dropZone.style.opacity = '1';
+            
+            // Reset button state
+            uploadBtnText.textContent = 'Start Processing';
+            uploadSpinner.classList.add('hidden');
+        }
+
+        async function uploadAndProcess() {
+            // Check if already processing
+            if (isProcessing) {
+                alert('Processing is already in progress. Please wait for it to complete before starting a new request.');
+                return;
+            }
+
+            const templateType = document.getElementById('templateType').value;
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadBtnText = document.getElementById('uploadBtnText');
+            const uploadSpinner = document.getElementById('uploadSpinner');
+
+            if (!fileInput.files[0]) {
+                // Highlight the drop zone to draw attention
+                dropZone.style.borderColor = 'var(--error-color)';
+                dropZone.style.background = 'rgba(255, 107, 107, 0.05)';
+                
+                setTimeout(() => {
+                    dropZone.style.borderColor = '';
+                    dropZone.style.background = '';
+                }, 2000);
+                
+                alert('Please select a CSV file first');
+                return;
+            }
+
+            // Set processing state and disable UI
+            isProcessing = true;
+            uploadBtn.disabled = true;
+            uploadBtnText.textContent = 'Processing...';
+            uploadSpinner.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('template_type', templateType);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/upload-and-process`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    currentRequestId = result.request_id;
+                    totalEmails = result.processing_info.total_emails;
+                    
+                    // Disable the entire upload UI during processing
+                    disableUploadUI();
+                    
+                    showProcessingState();
+                    connectToSSE(currentRequestId);
+                } else {
+                    throw new Error(result.detail || 'Upload failed');
+                }
+            } catch (error) {
+                alert(`Upload failed: ${error.message}`);
+                // Re-enable UI on upload error
+                isProcessing = false;
+                enableUploadUI();
+            }
+        }
+
+        function showProcessingState() {
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('progressCard').classList.remove('hidden');
+            document.getElementById('emailResults').classList.remove('hidden');
+            updateProgressStats();
+        }
+
+        function updateProgressStats() {
+            const progressStats = document.getElementById('progressStats');
+            const progressFill = document.getElementById('progressFill');
+            const emailCount = document.getElementById('emailCount');
+            
+            const processed = completedEmails + failedEmails;
+            const percentage = totalEmails > 0 ? Math.round((processed / totalEmails) * 100) : 0;
+            
+            progressStats.textContent = `${processed} of ${totalEmails} emails processed`;
+            progressFill.style.width = `${percentage}%`;
+            emailCount.textContent = `${processed} emails`;
+        }
+
+        function connectToSSE(requestId) {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource(`${API_BASE_URL}/stream/requests/${requestId}`);
+
+            eventSource.onopen = function() {
+                console.log('SSE connection established');
+            };
+
+            eventSource.addEventListener('email_completed', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    completedEmails++;
+                    addEmailToUI(data.data, 'success');
+                    updateProgressStats();
+                } catch (e) {
+                    console.error('Error processing email_completed:', e);
+                }
+            });
+
+            eventSource.addEventListener('email_failed', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    failedEmails++;
+                    addEmailToUI(data.data, 'error');
+                    updateProgressStats();
+                } catch (e) {
+                    console.error('Error processing email_failed:', e);
+                }
+            });
+
+            eventSource.addEventListener('processing_complete', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    const statusBadge = document.getElementById('statusBadge');
+                    
+                    statusBadge.textContent = 'Completed';
+                    statusBadge.className = 'status-badge status-completed';
+                    
+                    document.getElementById('downloadSection').classList.remove('hidden');
+                    
+                    // Re-enable upload UI after processing completes
+                    isProcessing = false;
+                    enableUploadUI();
+                } catch (e) {
+                    console.error('Error processing completion:', e);
+                }
+            });
+
+            eventSource.addEventListener('connection_closing', function(event) {
+                disconnect();
+            });
+
+            eventSource.addEventListener('error', function(event) {
+                console.error('SSE error occurred');
+                // Re-enable UI on connection error
+                isProcessing = false;
+                enableUploadUI();
+            });
+
+            eventSource.onerror = function(event) {
+                console.error('SSE connection error');
+                disconnect();
+            };
+        }
+
+        function addEmailToUI(emailData, type) {
+            const emailList = document.getElementById('emailList');
+            const emailItem = document.createElement('div');
+            emailItem.className = `email-item ${type} fade-in`;
+            
+            const isSuccess = type === 'success';
+            
+            emailItem.innerHTML = `
+                <div class="email-header">
+                    <div>
+                        <div class="email-name">${emailData.name}</div>
+                        <div class="email-company">${emailData.company}</div>
+                    </div>
+                    <span class="status-badge ${isSuccess ? 'status-completed' : 'status-error'}">
+                        ${isSuccess ? 'Success' : 'Failed'}
+                    </span>
+                </div>
+                <div class="email-meta">
+                    Template: ${emailData.template_type} | 
+                    Processing: ${emailData.processing_time_seconds}s
+                    ${isSuccess ? ` | Cost: $${emailData.cost_usd?.toFixed(4) || '0.0000'}` : ''}
+                </div>
+                <div class="email-content">
+                    ${isSuccess ? emailData.generated_email : `Error: ${emailData.error_message}`}
+                </div>
+            `;
+            
+            emailList.insertBefore(emailItem, emailList.firstChild);
+        }
+
+        function disconnect() {
+            if (eventSource) {
+                eventSource.removeEventListener('onopen', null);
+                eventSource.removeEventListener('onmessage', null);
+                eventSource.removeEventListener('onerror', null);
+                eventSource.close();
+                eventSource = null;
+                console.log('SSE connection closed');
+                
+                // Re-enable UI when disconnecting (in case of manual disconnect or errors)
+                if (isProcessing) {
+                    isProcessing = false;
+                    enableUploadUI();
+                }
+            }
+        }
+
+        async function downloadResults() {
+            if (!currentRequestId) {
+                alert('No request ID available for download');
+                return;
+            }
+
+            const downloadUrl = `${API_BASE_URL}/requests/${currentRequestId}/download`;
+            
+            try {
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `emails_${currentRequestId}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Download failed. Please try again.');
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            disconnect();
+        });
+    </script>
+</body>
+</html>

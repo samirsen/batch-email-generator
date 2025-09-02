@@ -1,0 +1,84 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Virtual environments
+venv/
+env/
+ENV/
+venv.bak/
+email_generator_env/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+*.env
+.env*
+!env.example
+server.log
+logs/
+temp/
+uploads/
+!uploads/.gitkeep
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation (optional - remove if you want docs in container)
+README.md
+SETUP_INSTRUCTIONS.md
+QUICK_SETUP.md
+docs/
+diagrams.md
+CORS_SETUP.md
+
+# Database files
+*.sql
+!database_schema.sql
+
+# Test data
+scripts/test_data/
+test_*.csv
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

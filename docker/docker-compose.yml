@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: email-generator-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-email_generator}
+      POSTGRES_USER: ${DB_USER:-email_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_email_password_123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - email-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U email_user -d email_generator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Main Application
+  app:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: email-generator-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-email_generator}
+      DB_USER: ${DB_USER:-email_user}
+      DB_PASSWORD: ${DB_PASSWORD:-secure_email_password_123}
+      
+      # OpenAI Configuration (set via .env file or environment)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-1000}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-0.7}
+      
+      # Email Processing Configuration
+      BATCH_SIZE: ${BATCH_SIZE:-100}
+      MAX_CSV_ROWS: ${MAX_CSV_ROWS:-50000}
+      INTELLIGENCE_BATCH_SIZE: ${INTELLIGENCE_BATCH_SIZE:-5}
+      AI_FALLBACK_TO_TEMPLATE: ${AI_FALLBACK_TO_TEMPLATE:-true}
+      
+      # Server Configuration
+      HOST: 0.0.0.0
+      PORT: 8000
+      
+      # Database Connection Pool Settings
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-30}
+      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE:-3600}
+      DB_ECHO: ${DB_ECHO:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../uploads:/app/uploads
+      - ../temp:/app/temp
+      - ../logs:/app/logs
+    networks:
+      - email-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Database Admin Interface
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: email-generator-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@email-generator.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - email-network
+    profiles:
+      - admin
+
+  # Optional: Redis for caching (future enhancement)
+  redis:
+    image: redis:7-alpine
+    container_name: email-generator-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - email-network
+    profiles:
+      - cache
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local  
+  redis_data:
+    driver: local
+
+networks:
+  email-network:
+    driver: bridge

@@ -1,0 +1,11 @@
+version: '3.8'
+
+# Simple build override for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.simple.yml up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    # All other settings inherited from main docker-compose.yml

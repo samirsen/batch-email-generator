@@ -1,0 +1,16 @@
+version: '3.8'
+
+# Robust build override with network fixes
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.robust.yml up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.robust
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    # All other settings inherited from main docker-compose.yml

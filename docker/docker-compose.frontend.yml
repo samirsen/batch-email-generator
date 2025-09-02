@@ -1,0 +1,25 @@
+# Frontend service override for any Docker setup
+services:
+  # Frontend Web Interface
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: email-generator-frontend
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      # API endpoint for frontend to connect to backend
+      API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    networks:
+      - email-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/frontend-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
