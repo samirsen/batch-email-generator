@@ -1,16 +1,10 @@
-"""
-SixtyFour API Integration Module
-
-This module provides integration with the SixtyFour API for company enrichment data.
-"""
-
+from datetime import datetime
 import os
 import aiohttp
 import json
 from typing import Dict, Any, Optional
 
-# SixtyFour API configuration
-SIXTYFOUR_API_KEY = os.getenv("SIXTYFOUR_API_KEY", "api_rsaNdiPCpBrpGPUMqLx43mMEqWmhLZNN")
+SIXTYFOUR_API_KEY = os.getenv("SIXTYFOUR_API_KEY", "")
 SIXTYFOUR_API_BASE_URL = os.getenv("SIXTYFOUR_API_BASE_URL", "https://api.sixtyfour.ai")
 
 class SixtyFourAPI:
@@ -28,33 +22,70 @@ class SixtyFourAPI:
         self.api_key = api_key or SIXTYFOUR_API_KEY
         self.base_url = SIXTYFOUR_API_BASE_URL
         
-    async def get_company_data(self, company_name: str) -> Dict[str, Any]:
+    async def get_company_data(self, company_name: str, company_website: str = None) -> Dict[str, Any]:
         """
         Get company enrichment data from SixtyFour API
         
         Args:
             company_name: Name of the company to look up
+            company_website: Website URL for better context (optional)
             
         Returns:
             Dictionary with company data including industry/vertical
         """
         try:
+            if not self.api_key:
+                print("ERROR: No SixtyFour API key found!")
+                return {"error": "No API key configured", "company_name": company_name}
+                
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
+                "x-api-key": self.api_key,
                 "Content-Type": "application/json"
             }
             
-            # Endpoint for company enrichment (adjust based on actual API documentation)
-            endpoint = f"{self.base_url}/v1/companies/enrich"
+            print(f"Using API key: {self.api_key[:20]}..." if len(self.api_key) > 20 else f"Using API key: {self.api_key}")
             
-            async with aiohttp.ClientSession() as session:
+            endpoint = f"{self.base_url}/enrich-company"
+            
+            target_company = {
+                "company_name": company_name
+            }
+            if company_website:
+                target_company["website"] = company_website
+            
+            struct = {
+                "industry": "Primary industry or sector",
+                "vertical": "Business vertical or category",
+                "company_description": "Brief description of what the company does",
+                "founded_year": {"description": "Year the company was founded", "type": "int"},
+                "recent_news": {"description": "Recent press or announcements", "type": "list[string]"},
+                "funding_rounds": {"description": "Funding rounds and amounts", "type": "list[string]"},
+                "linkedin_url": "LinkedIn company page",
+            }
+            
+            payload = {
+                "target_company": target_company,
+                "struct": struct,
+                "find_people": False
+            }
+            
+            print(f"Making SixtyFour API request to: {endpoint}")
+            print(f"Payload: {json.dumps(payload, indent=2)}")
+            
+            # The API can take 5-10 minutes to respond
+            timeout = aiohttp.ClientTimeout(total=600, sock_read=600, sock_connect=30)
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     endpoint,
                     headers=headers,
-                    json={"company_name": company_name}
+                    json=payload
                 ) as response:
+                    print(f"SixtyFour API response status: {response.status}")
                     if response.status == 200:
-                        return await response.json()
+                        data = await response.json()
+                        print("SixtyFour API data:", data)
+                        return data.get("structured_data", {})
                     else:
                         error_text = await response.text()
                         print(f"SixtyFour API error ({response.status}): {error_text}")
@@ -62,34 +93,51 @@ class SixtyFourAPI:
                         
         except Exception as e:
             print(f"Error calling SixtyFour API: {str(e)}")
-            return {"error": str(e), "company_name": company_name}
+            # Return minimal fallback data so email generation can continue
+            return {
+                "error": str(e), 
+                "company_name": company_name,
+                "industry": "technology",
+                "vertical": "software"
+            }
     
     def extract_company_vertical(self, company_data: Dict[str, Any]) -> str:
         """
         Extract company vertical/industry from API response
         
         Args:
-            company_data: Company data from SixtyFour API
+            company_data: Company data from SixtyFour API (structured_data portion)
             
         Returns:
             Company vertical as string
         """
-        # Extract industry/vertical from API response
-        # Adjust this based on the actual API response structure
         if "error" in company_data:
             # Fallback to a generic vertical if API call failed
             return "technology"
             
-        # Try to extract vertical from different possible fields
-        # This is a guess at the API structure - adjust based on actual API docs
-        vertical = company_data.get("industry") or company_data.get("vertical") or company_data.get("sector")
+        vertical = company_data.get("industry") or company_data.get("vertical")
         
-        if not vertical and "categories" in company_data:
-            categories = company_data.get("categories", [])
-            if categories and len(categories) > 0:
-                vertical = categories[0]
+        if not vertical and "company_description" in company_data:
+            description = company_data.get("company_description", "").lower()
+            if any(keyword in description for keyword in ["ai", "artificial intelligence", "machine learning"]):
+                vertical = "ai"
+            elif any(keyword in description for keyword in ["fintech", "financial", "banking", "payments"]):
+                vertical = "fintech"
+            elif any(keyword in description for keyword in ["healthcare", "medical", "health"]):
+                vertical = "healthcare"
+            elif any(keyword in description for keyword in ["enterprise", "b2b", "business"]):
+                vertical = "enterprise"
+            elif any(keyword in description for keyword in ["consumer", "b2c", "retail"]):
+                vertical = "consumer"
+            elif any(keyword in description for keyword in ["ecommerce", "e-commerce", "marketplace"]):
+                vertical = "ecommerce"
+            elif any(keyword in description for keyword in ["crypto", "blockchain", "web3"]):
+                vertical = "crypto"
+            elif any(keyword in description for keyword in ["security", "cybersecurity", "cyber"]):
+                vertical = "security"
+            elif any(keyword in description for keyword in ["software", "saas", "platform"]):
+                vertical = "software"
                 
-        # Default fallback
         return vertical or "technology"
     
     def is_app_layer_company(self, company_data: Dict[str, Any]) -> bool:
@@ -104,7 +152,6 @@ class SixtyFourAPI:
         """
         vertical = self.extract_company_vertical(company_data).lower()
         
-        # App-layer indicators in the vertical/industry
         app_layer_keywords = [
             "software", "saas", "application", "app", "platform", "tech", 
             "technology", "digital", "cloud", "enterprise software"
@@ -117,67 +164,78 @@ class SixtyFourAPI:
         Determine the appropriate one-liner based on company data
         
         Args:
-            company_data: Company data from SixtyFour API
+            company_data: Company data from SixtyFour API (structured_data portion)
             
         Returns:
             One-liner string for the email
         """
-        # Default one-liner
         default_one_liner = "Congrats on everything to-date."
         
-        # Check for signals in the company data
-        # This is a placeholder - adjust based on actual API response structure
-        if "funding" in company_data and company_data.get("funding", {}).get("recent", False):
-            return "Congrats on the recent round announcement."
-            
-        if "product" in company_data and company_data.get("product", {}).get("recent_launch", False):
-            return "Congrats on the new launch — exciting milestone."
-            
-        if "reputation" in company_data and company_data.get("reputation", {}).get("strong", False):
+        
+        funding_rounds = company_data.get("funding_rounds", [])
+        if funding_rounds and len(funding_rounds) > 0:
+            # Check if any funding round mentions recent keywords
+            recent_funding_keywords = ["2025","2024", "series", "seed", "round", "raised"]
+            for round_info in funding_rounds:
+                if isinstance(round_info, str) and any(keyword in round_info.lower() for keyword in recent_funding_keywords):
+                    return "Congrats on the recent round announcement."
+        
+        recent_news = company_data.get("recent_news", [])
+        if recent_news and len(recent_news) > 0:
+            launch_keywords = ["launch", "release", "announce", "milestone", "expansion"]
+            for news_item in recent_news:
+                if isinstance(news_item, str) and any(keyword in news_item.lower() for keyword in launch_keywords):
+                    return "Congrats on the new launch — exciting milestone."
+        
+        founded_year = company_data.get("founded_year")
+        if founded_year and isinstance(founded_year, int):
+            current_year = datetime.now().year
+            company_age = current_year - founded_year
+            if company_age >= 5:
+                return "You've built a strong reputation in the space over time."
+        
+        num_employees = company_data.get("num_employees")
+        if num_employees and isinstance(num_employees, int) and num_employees >= 100:
             return "You've built a strong reputation in the space over time."
             
-        # Default to momentum
         return default_one_liner
 
 
-# Module-level convenience functions
-async def get_company_enrichment(company_name: str) -> Dict[str, Any]:
+async def get_company_enrichment(company_name: str, company_website: str = None) -> Dict[str, Any]:
     """
     Convenience function to get company enrichment data
     
     Args:
         company_name: Name of the company to look up
+        company_website: Website URL for better context (optional)
         
     Returns:
         Dictionary with company data
     """
     client = SixtyFourAPI()
-    return await client.get_company_data(company_name)
+    return await client.get_company_data(company_name, company_website)
 
 
-async def get_email_variables(company_name: str) -> Dict[str, Any]:
+async def get_email_variables(company_name: str, company_website: str = None) -> Dict[str, Any]:
     """
     Get email template variables based on company data
     
     Args:
         company_name: Name of the company to look up
+        company_website: Website URL for better context (optional)
         
     Returns:
         Dictionary with template variables
     """
     client = SixtyFourAPI()
-    company_data = await client.get_company_data(company_name)
+    company_data = await client.get_company_data(company_name, company_website)
     
-    # Extract company vertical
     company_vertical = client.extract_company_vertical(company_data)
     
-    # Determine if it's an app-layer company
     app_layer = client.is_app_layer_company(company_data)
     
-    # Determine one-liner based on company signals
     one_liner = client.determine_one_liner(company_data)
     
-    # Sample portfolio companies based on vertical
     portfolio_companies = get_portfolio_companies_by_vertical(company_vertical)
     
     return {
@@ -185,8 +243,8 @@ async def get_email_variables(company_name: str) -> Dict[str, Any]:
         "app_layer": app_layer,
         "one_liner": one_liner,
         "portfolio_companies": portfolio_companies,
-        "include_tldr": False,  # Default to not include TLDR
-        "tldr_block": ""  # Empty TLDR block by default
+        "include_tldr": True,
+        "tldr_block": ""
     }
 
 

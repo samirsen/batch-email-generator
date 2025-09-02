@@ -14,7 +14,7 @@ async def test_email_generation():
     # Create a test row
     test_row = pd.Series({
         'name': 'John Smith',
-        'company': 'AI Tech Solutions',
+        'company': 'Cloudflare',
         'linkedin_url': 'https://linkedin.com/in/johnsmith',
         'intelligence': True,
         'template_type': 'lucas'
