@@ -24,7 +24,7 @@ class TemplateType(str, Enum):
 
 
 # Default template type
-DEFAULT_TEMPLATE_TYPE = TemplateType.ZACH
+DEFAULT_TEMPLATE_TYPE = TemplateType.LUCAS
 
 # Template repository
 EMAIL_TEMPLATES = {
@@ -230,20 +230,21 @@ Lexi
 
 {% if app_layer -%}
 I lead app-layer investing at Sound Ventures, a $1.5bn+ AUM VC firm led by Ashton Kutcher. 
-We've been early investors in generational companies like {{ portfolio }}.
+We've been early investors in generational companies like {{ portfolio_companies }}.
 {%- else -%}
-I’m an investor at Sound Ventures, a $1.5bn+ AUM VC firm led by Ashton Kutcher. 
-We've been early investors in generational companies like {{ portfolio }}.
+I'm an investor at Sound Ventures, a $1.5bn+ AUM VC firm led by Ashton Kutcher. 
+We've been early investors in generational companies like {{ portfolio_companies }}.
 {%- endif %}
 
-AI x {{ company_vertical }} is our #1 focus currently and we’ve heard exceptionally positive things about you/{{ company_name }}. {{ one_liner }}
+AI x {{ company_vertical }} is our #1 focus currently and we've heard exceptionally positive things about you/{{ company_name }}. {{ one_liner }}
 
 {% if include_tldr %}
 {{ tldr_block }}
 {% endif %}
 
-I’d love to hop on a call to learn about where you’re headed and introduce you to Sound / our less traditional value-add{{ " in this space" if add_space_clause else "" }}. 
-Let me know if you’d be open to it and if so when works for you!
+I'd love to hop on a call to learn about where you're headed and introduce you to Sound. 
+
+Let me know if you'd be open to it and if so when works for you!
 
 Thanks,
 Lucas
@@ -308,3 +309,4 @@ def get_template_statistics() -> Dict[str, Any]:
         "default_template": DEFAULT_TEMPLATE_TYPE.value,
         "required_variables": ["name", "company", "linkedin_url"]
     }
+

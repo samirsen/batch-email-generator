@@ -1,0 +1,21 @@
+# Frontend Dockerfile - Serves static HTML/CSS/JS files with nginx
+FROM nginx:alpine
+
+# Install curl for HEALTHCHECK
+RUN apk add --no-cache curl
+
+# Copy static assets
+COPY ui/ /usr/share/nginx/html/
+
+# Copy nginx config and entrypoint script
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/entrypoint.sh /docker-entrypoint.sh
+
+RUN chmod +x /docker-entrypoint.sh
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -fsS http://localhost/frontend-health || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
