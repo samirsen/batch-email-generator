@@ -214,13 +214,10 @@ Write the personalized {template_type.replace('_', ' ')} email from {agent_name}
         """
         start_time = asyncio.get_event_loop().time()
         
-        # Debug print
-        print(f"Template type received: {template_type} (type: {type(template_type)})")
         
         # Special handling for Lexi template
         if template_type == 'lexi' or template_type == TemplateType.LEXI:
             try:
-                print(f"Using Lexi prompt for {user_info.get('name', 'Unknown')}")
                 email_content = await get_lexie_response(
                     company_name=user_info.get('company', ''),
                     recipient_name=user_info.get('name', ''),

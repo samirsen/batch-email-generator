@@ -35,7 +35,6 @@ class SixtyFourAPI:
         """
         try:
             if not self.api_key:
-                print("ERROR: No SixtyFour API key found!")
                 return {"error": "No API key configured", "company_name": company_name}
                 
             headers = {
@@ -43,7 +42,6 @@ class SixtyFourAPI:
                 "Content-Type": "application/json"
             }
             
-            print(f"Using API key: {self.api_key[:20]}..." if len(self.api_key) > 20 else f"Using API key: {self.api_key}")
             
             endpoint = f"{self.base_url}/enrich-company"
             
@@ -69,8 +67,6 @@ class SixtyFourAPI:
                 "find_people": False
             }
             
-            print(f"Making SixtyFour API request to: {endpoint}")
-            print(f"Payload: {json.dumps(payload, indent=2)}")
             
             # The API can take 5-10 minutes to respond
             timeout = aiohttp.ClientTimeout(total=600, sock_read=600, sock_connect=30)
@@ -81,18 +77,14 @@ class SixtyFourAPI:
                     headers=headers,
                     json=payload
                 ) as response:
-                    print(f"SixtyFour API response status: {response.status}")
                     if response.status == 200:
                         data = await response.json()
-                        print("SixtyFour API data:", data)
                         return data.get("structured_data", {})
                     else:
                         error_text = await response.text()
-                        print(f"SixtyFour API error ({response.status}): {error_text}")
                         return {"error": f"API error: {response.status}", "company_name": company_name}
                         
         except Exception as e:
-            print(f"Error calling SixtyFour API: {str(e)}")
             # Return minimal fallback data so email generation can continue
             return {
                 "error": str(e), 

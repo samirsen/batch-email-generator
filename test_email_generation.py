@@ -15,11 +15,11 @@ async def test_email_generation():
     """
     Test email generation with the new template format
     """
-    # Create a test row using Nurture company data
+    # Create a test row using FASHN company data
     test_row = pd.Series({
-        'name': 'Nisha',
-        'company': 'Nurture',
-        'linkedin_url': 'https://www.linkedin.com/in/nishakochar/',
+        'name': 'Dan',
+        'company': 'FASHN',
+        'linkedin_url': 'https://www.linkedin.com/in/danbochman/',
         'intelligence': True,
         'template_type': 'lexie'
     })
