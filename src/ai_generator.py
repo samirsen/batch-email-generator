@@ -25,6 +25,7 @@ from openai import AsyncOpenAI
 from .linkedin_research import ResearchResult, ProfileData, ResearchStatus
 from .templates import TemplateType, EMAIL_TEMPLATES
 from .utils import get_random_agent_info
+from .lexie_prompt import get_lexie_response
 
 
 class GenerationStatus(Enum):
@@ -213,7 +214,33 @@ Write the personalized {template_type.replace('_', ' ')} email from {agent_name}
         """
         start_time = asyncio.get_event_loop().time()
         
-        # Validate configuration
+        
+        # Special handling for Lexi template
+        if template_type == 'lexi' or template_type == TemplateType.LEXI:
+            try:
+                email_content = await get_lexie_response(
+                    company_name=user_info.get('company', ''),
+                    recipient_name=user_info.get('name', ''),
+                    company_website=user_info.get('linkedin_url', '')
+                )
+                
+                return GenerationResult(
+                    status=GenerationStatus.SUCCESS,
+                    email_content=email_content,
+                    tokens_used=0,  # Handled by lexie_prompt module
+                    generation_time_seconds=asyncio.get_event_loop().time() - start_time,
+                    model_used=self.model,
+                    fallback_used=False
+                )
+                
+            except Exception as e:
+                return GenerationResult(
+                    status=GenerationStatus.FAILED,
+                    error_message=f"Lexi generation error: {str(e)}",
+                    generation_time_seconds=asyncio.get_event_loop().time() - start_time
+                )
+        
+        # Validate configuration for other templates
         is_valid, error_msg = self.validate_configuration()
         if not is_valid:
             return GenerationResult(
