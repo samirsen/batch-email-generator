@@ -47,7 +47,7 @@ COMPANY INFORMATION:
 
 Based on the recipient's information and company data, generate content for each template variable:
 - name: {{{{name}}}}
-- opening_line: Brief, personalized greeting referencing something specific about {company_name} or their background
+- opening_line: REQUIRED - Brief greeting like "Hope your week is off to a great start!" or "Hope Q1 is wrapping up nicely!"
 - intro_line: Your role/focus at Sound Ventures (e.g., "I focus on {company_vertical} and emerging tech investments")
 - portfolio: Use these relevant portfolio companies: {portfolio_companies_str}
 - personalization_block: Specific reason why you're reaching out to this particular founder/company, mentioning their industry ({company_vertical})
