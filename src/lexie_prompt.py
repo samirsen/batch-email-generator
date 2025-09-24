@@ -48,9 +48,15 @@ COMPANY INFORMATION:
 Based on the recipient's information and company data, generate content for each template variable:
 - name: {{{{name}}}}
 - opening_line: REQUIRED - Brief greeting like "Hope your week is off to a great start!" or "Hope Q1 is wrapping up nicely!"
-- intro_line: Your role/focus at Sound Ventures (e.g., "I focus on {company_vertical} and emerging tech investments")
+- intro_line: Your role/focus at Sound Ventures - should be based on company type (these are examples, adapt as needed):
+  * if company is AI/app-layer: "I lead AI app-layer investing at Sound Ventures, a $2bn+ AUM VC firm led by Ashton Kutcher and Guy Oseary. We've been early investors in {ai_portfolio}."
+  * if company is vertical software/health: "I co-lead our vertical software and health tech investing arms at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been early investors in {vertical_portfolio}."
+  * if company is consumer/e-comm: "I lead our consumer investing at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been active consumer investors for 20 years, backing {consumer_portfolio}."
 - portfolio: Use these relevant portfolio companies: {portfolio_companies_str}
-- personalization_block: Specific reason why you're reaching out to this particular founder/company, mentioning their industry ({company_vertical})
+- personalization_block: Show you've researched this particular founder/company specifically (these are examples, adapt as needed):
+  * "We've heard amazing things about {company_name} and would love to get to know you ahead of your next round."
+  * "Several members of our team (myself included) are {product_name} users and have loved the experience."
+  * "I came across {company_name} in my last role and loved the concept."
 - context_block: Brief context about Sound Ventures' investment focus, especially in {company_vertical} companies
 - cta_block: Clear call-to-action for a call or meeting
 
@@ -115,35 +121,3 @@ async def get_lexie_response(company_name: str, recipient_name: str, company_web
         raise Exception(f"OpenAI API error: {str(e)}")
 
 
-if __name__ == "__main__":
-    import asyncio
-
-    print("=== LEXIE TEMPLATE ===")
-    print(get_template_content(TemplateType.LEXI))
-    print()
-
-    print("=== LEXIE PROMPT FOR NURTURE ===")
-    print(get_lexie_prompt("Nurture"))
-    print()
-
-    print("=== OPENAI RESPONSE FOR NURTURE COMPANY (NISHA) ===")
-
-    async def test_response():
-        try:
-            print("Starting OpenAI call...")
-            response = await get_lexie_response(
-                "Nurture",
-                "Nisha",
-                "https://www.linkedin.com/in/nishakochar/",
-            )
-            print("OpenAI Response received:")
-            print("-" * 50)
-            print(response)
-            print("-" * 50)
-        except Exception as e:
-            print(f"Error: {e}")
-            import traceback
-
-            traceback.print_exc()
-
-    asyncio.run(test_response())

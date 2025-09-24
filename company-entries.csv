@@ -1,17 +1,3 @@
-company,website,name,linkedin_url
-Nurture,nurture.is,Nisha,https://www.linkedin.com/in/nishakochar/
-FASHN,fashn.ai,Dan,https://www.linkedin.com/in/danbochman/
-Blink,blink.new,Kai,https://www.linkedin.com/in/kaijiabofeng/
-Pharmie AI,pharmie.app,Neer,https://www.linkedin.com/in/neer-jain/
-Crosshatch,crosshatch.io,Soren,https://www.linkedin.com/in/sorenlarson/
-Nexa,nexa.farm,Zarif,https://www.linkedin.com/in/zarif-azher-260b401bb/
-Snagged.com,snagged.com,Rob,https://www.linkedin.com/in/robschutz/
-Orchard AI,orchard.ai,Charles,https://www.linkedin.com/in/charles-w/
-Hera,hera.video,Chia,https://www.linkedin.com/in/chialunwu/
-Autumn,useautumn.com,Rohan,https://www.linkedin.com/in/rohan-sharma-0a240525a/
-Gizmo.party,https://gizmo.party/,Petros,https://www.linkedin.com/in/petros-christodoulou-36402b37/
-Knot.dating,knot.dating,Jasveer,https://www.linkedin.com/in/jasveer10/
-Sunflower,sunflower.me,Bobby,https://www.linkedin.com/in/bobby-goodlatte/
-Anchor AI,useanchor.ai,Sam,https://www.linkedin.com/in/sambuddhabasu1/
-tata-bazaar.com,tata-bazaar.com,Aleksija,https://www.linkedin.com/in/aleksija-vujicic/
-Primeui.com,https://primeui.com/,Alex,https://www.linkedin.com/in/barashkov-alex/
+company,website,name,linkedin_url,intelligence
+Nurture,nurture.is,Nisha,https://www.linkedin.com/in/nishakochar/,TRUE
+FASHN,fashn.ai,Dan,https://www.linkedin.com/in/danbochman/,TRUE
