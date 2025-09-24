@@ -49,9 +49,9 @@ Based on the recipient's information and company data, generate content for each
 - name: {{{{name}}}}
 - opening_line: REQUIRED - Brief greeting like "Hope your week is off to a great start!" or "Hope Q1 is wrapping up nicely!"
 - intro_line: Your role/focus at Sound Ventures - should be based on company type (these are examples, adapt as needed):
-  * if company is AI/app-layer: "I lead AI app-layer investing at Sound Ventures, a $2bn+ AUM VC firm led by Ashton Kutcher and Guy Oseary. We've been early investors in {ai_portfolio}."
-  * if company is vertical software/health: "I co-lead our vertical software and health tech investing arms at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been early investors in {vertical_portfolio}."
-  * if company is consumer/e-comm: "I lead our consumer investing at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been active consumer investors for 20 years, backing {consumer_portfolio}."
+  * if company is AI/app-layer: "I lead AI app-layer investing at Sound Ventures, a $2bn+ AUM VC firm led by Ashton Kutcher and Guy Oseary. We've been early investors in {portfolio_companies_str}."
+  * if company is vertical software/health: "I co-lead our vertical software and health tech investing arms at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been early investors in {portfolio_companies_str}."
+  * if company is consumer/e-comm: "I lead our consumer investing at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been active consumer investors for 20 years, backing {portfolio_companies_str}."
 - portfolio: Use these relevant portfolio companies: {portfolio_companies_str}
 - personalization_block: Show you've researched this particular founder/company specifically (these are examples, adapt as needed):
   * "We've heard amazing things about {company_name} and would love to get to know you ahead of your next round."
