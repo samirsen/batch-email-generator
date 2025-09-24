@@ -55,7 +55,6 @@ Based on the recipient's information and company data, generate content for each
 - portfolio: Use these relevant portfolio companies: {portfolio_companies_str}
 - personalization_block: Show you've researched this particular founder/company specifically (these are examples, adapt as needed):
   * "We've heard amazing things about {company_name} and would love to get to know you ahead of your next round."
-  * "Several members of our team (myself included) are {product_name} users and have loved the experience."
   * "I came across {company_name} in my last role and loved the concept."
 - context_block: Brief context about Sound Ventures' investment focus, especially in {company_vertical} companies
 - cta_block: Clear call-to-action for a call or meeting
