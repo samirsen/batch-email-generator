@@ -1,6 +1,7 @@
 import traceback
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from typing import Optional, AsyncGenerator
 import pandas as pd
 import io
@@ -239,6 +240,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
 )
+
+# Mount static files to serve the UI  
+app.mount("/ui", StaticFiles(directory="ui", html=True), name="ui")
 
 
 @app.get("/")
