@@ -142,7 +142,7 @@ class ProcessingBatch(Base):
     
     # Batch processing
     emails_in_batch = Column(Integer, nullable=False)
-    batch_size_limit = Column(Integer, default=5)
+    batch_size_limit = Column(Integer, default=100)
     
     # Status and timing
     status = Column(String(20), default='pending', index=True)  # pending, processing, completed, failed

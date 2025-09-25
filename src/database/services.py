@@ -432,7 +432,7 @@ class ProcessingBatchService:
         batch_number: int,
         total_batches: int,
         emails_in_batch: int,
-        batch_size_limit: int = 5
+        batch_size_limit: int = 100
     ) -> ProcessingBatch:
         """Create a new processing batch"""
         db_manager = get_database_manager()
