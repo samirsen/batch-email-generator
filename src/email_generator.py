@@ -16,11 +16,9 @@ from .linkedin_research import research_linkedin_profile
 from .ai_generator import generate_ai_email, generate_ai_email_from_template
 from .utils import create_batches
 from .database.services import GeneratedEmailService
-from .sixtyfour_api import get_email_variables
 
 
 # Configuration
-INTELLIGENCE_BATCH_SIZE = int(os.getenv("INTELLIGENCE_BATCH_SIZE", "5"))
 INTELLIGENCE_BATCH_SIZE = int(os.getenv("INTELLIGENCE_BATCH_SIZE", "100"))
 AI_FALLBACK_TO_TEMPLATE = os.getenv("AI_FALLBACK_TO_TEMPLATE", "true").lower() == "true"
 
@@ -31,7 +29,7 @@ def save_batch_to_database(request_id: str, batch_results: dict, original_df: pd
     
     Args:
         request_id: The request ID
-        batch_results: Dictionary of {row_index: email_content} for this batch
+        batch_results: Dictionary of {row_index: email_content} or {row_index: {lexi_email: str, lucas_email: str, networking_email: str}}
         original_df: Original dataframe to get row data
         uuid_mapping: Optional mapping of row indices to UUIDs
     """
@@ -47,12 +45,14 @@ def save_batch_to_database(request_id: str, batch_results: dict, original_df: pd
                 print(f"Warning: No UUID mapping for row {row_idx}, skipping database save")
                 continue
             
-            # Update the email in database
+            # Update the email in database with 3-column results
             success = GeneratedEmailService.update_generated_email(
                 placeholder_uuid=str(placeholder_uuid),
-                generated_email=email_content,
-                processing_time_seconds=0.8,  # Approximate time per email
-                cost_usd=0.0003  # Realistic cost per email based on GPT-4o-mini pricing
+                lexi_email=email_content.get('lexi_email'),
+                lucas_email=email_content.get('lucas_email'),
+                networking_email=email_content.get('networking_email'),
+                processing_time_seconds=2.4,  # Approximate time for 3 emails
+                cost_usd=0.0009  # Realistic cost for 3 emails
             )
             
             if success:
