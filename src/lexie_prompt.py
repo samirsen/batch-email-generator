@@ -119,6 +119,11 @@ async def get_ai_email_response(company_name: str, recipient_name: str, template
     prompt = get_generic_prompt(company_name, recipient_name, template_type, company_data)
 
     try:
+        print(f"🔄 Making OpenAI API call for {recipient_name} at {company_name}")
+        print(f"🔑 Using model: {os.getenv('OPENAI_MODEL', 'gpt-4o-mini')}")
+        print(f"🔑 Max tokens: {os.getenv('OPENAI_MAX_TOKENS', '1000')}")
+        print(f"🔑 Temperature: {os.getenv('OPENAI_TEMPERATURE', '0.4')}")
+        
         response = await client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=[
@@ -135,15 +140,24 @@ async def get_ai_email_response(company_name: str, recipient_name: str, template
             temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.4")),  # tuned for consistency
         )
 
+        print(f"✅ OpenAI API response received for {recipient_name}")
+        
         if response.choices and len(response.choices) > 0:
             email_text = response.choices[0].message.content.strip()
+            print(f"📧 Generated email content length: {len(email_text)} characters")
+            print(f"📧 Email preview (first 100 chars): {email_text[:100]}...")
+            
             # Safety net replacement in case model leaves {{name}} placeholders
             email_text = email_text.replace("{{name}}", recipient_name)
+            print(f"✅ Email generation completed for {recipient_name} at {company_name}")
             return email_text
         else:
+            print(f"❌ No response choices from OpenAI for {recipient_name}")
             raise ValueError("No response generated from OpenAI")
 
     except Exception as e:
+        print(f"❌ OpenAI API error for {recipient_name} at {company_name}: {str(e)}")
+        print(f"❌ Error type: {type(e).__name__}")
         raise Exception(f"OpenAI API error: {str(e)}")
 
 

@@ -217,6 +217,10 @@ async def process_all_emails_background(
                     
                     row_results[column_name] = email_content
                     print(f"✅ Generated {template_type.value} email for {user_info['company']}")
+                    print(f"📧 EMAIL CONTENT for {user_info['name']} at {user_info['company']} ({template_type.value}):")
+                    print("=" * 60)
+                    print(email_content)
+                    print("=" * 60)
                         
                 except Exception as e:
                     error_msg = f"Error generating {template_type.value} email: {str(e)}"

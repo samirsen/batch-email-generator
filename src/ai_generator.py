@@ -217,18 +217,24 @@ Write the personalized {template_type.replace('_', ' ')} email from {agent_name}
         
         # Use generic AI email generation for all templates
         try:
+            print(f"🔄 AI generation starting for {user_info.get('name', '')} at {user_info.get('company', '')} using template: {template_type}")
+            
             # Convert template_type to TemplateType enum if it's a string
             if isinstance(template_type, str):
                 template_enum = TemplateType(template_type.lower())
             else:
                 template_enum = template_type
                 
+            print(f"🔄 Calling get_ai_email_response with template: {template_enum.value}")
+            
             email_content = await get_ai_email_response(
                 company_name=user_info.get('company', ''),
                 recipient_name=user_info.get('name', ''),
                 template_type=template_enum,
                 company_website=user_info.get('linkedin_url', '')
             )
+            
+            print(f"✅ AI generation completed successfully for {user_info.get('name', '')}")
             
             return GenerationResult(
                 status=GenerationStatus.SUCCESS,
