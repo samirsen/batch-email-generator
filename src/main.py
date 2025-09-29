@@ -501,59 +501,26 @@ async def generate_emails(
         print(f"   Template LLM emails: {len(template_rows)} (background)")
         print(f"   AI research emails: {len(ai_rows)} (background)")
         
-        # Generate 3 different email templates for each row
-        template_types = [TemplateType.LEXI, TemplateType.LUCAS, TemplateType.NETWORKING]
-        template_columns = ['lexi_email', 'lucas_email', 'networking_email']
-        
-        # Initialize columns for each template
-        for col in template_columns:
-            df[col] = ""
-        
-        # Generate actual emails for all 3 templates
-        print(f"Generating 3 email variations for {len(df)} rows...")
-        
-        for i, row in df.iterrows():
-            user_info = {
-                'name': row.get('name', ''),
-                'company': row.get('company', ''),
-                'linkedin_url': row.get('linkedin_url', '')
-            }
-            
-            # Do Parallel AI research ONCE per company
-            company_data = None
-            try:
-                from .lexie_prompt import get_ai_email_response
-                # Get enriched data once (this does the Parallel AI call)
-                print(f"Getting company data for {user_info['company']}...")
-                # We'll call the enrichment directly instead of through generate_with_research
-                
-                # Import Parallel AI enrichment directly
-                from .gpt_enrichment import ParallelAIEnrichment
-                enrichment_client = ParallelAIEnrichment()
-                company_data = await enrichment_client.get_company_data(
-                    user_info['company'], 
-                    user_info['linkedin_url']
-                )
-                print(f"✅ Got enriched data for {user_info['company']}")
-                
-            except Exception as e:
-                print(f"❌ Error getting company data for {user_info['company']}: {e}")
-            
-            # Generate emails for each template type using the SAME enriched data
-            for template_type, column_name in zip(template_types, template_columns):
-                try:
-                    # Use the generic AI email response with pre-fetched company data
-                    email_content = await get_ai_email_response(
-                        company_name=user_info['company'],
-                        recipient_name=user_info['name'],
-                        template_type=template_type,
-                        company_website=user_info['linkedin_url']
-                    )
-                    
-                    df.loc[i, column_name] = email_content
-                        
-                except Exception as e:
-                    df.loc[i, column_name] = f"Error generating {template_type} email: {str(e)}"
+        # Create database records and placeholders
+        all_placeholders, all_uuid_mapping = create_database_records_and_placeholders(
+            request_id=request_id,
+            original_filename=file.filename,
+            df=df,
+            template_rows=template_rows,
+            ai_rows=ai_rows,
+            file_size_bytes=len(contents),
+            template_type=template_type
+        )
+        generated_emails = merge_results_in_order(df, all_placeholders)
+
+        # Start unified background processing for ALL emails
+        print(f"Starting unified background LLM processing for request {request_id}")
+        asyncio.create_task(
+            process_all_emails_background(request_id, df, template_type, all_uuid_mapping)
+        )
+
+        # Add generated emails to dataframe
+        df['generated_email'] = generated_emails
         
         # Convert dataframe to CSV string
         output = io.StringIO()
