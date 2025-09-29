@@ -234,6 +234,10 @@ async def process_all_emails_background(
         print(f"Unified background processing completed for request {request_id} in {processing_time:.2f}s")
         print(f"Generated {len(all_results)} rows × 3 templates = {len(all_results) * 3} total emails")
         
+        # Save 3-column results to database using existing function
+        from .email_generator import save_batch_to_database
+        save_batch_to_database(request_id, all_results, all_rows, uuid_mapping)
+        
         # Save results to JSON with 3-column structure
         log_unified_3column_results_to_json(request_id, all_results, all_rows, processing_time, uuid_mapping)
         

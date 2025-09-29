@@ -209,9 +209,12 @@ class GeneratedEmailService:
     @staticmethod
     def update_generated_email(
         placeholder_uuid: str,
-        generated_email: str,
-        processing_time_seconds: float,
-        cost_usd: float,
+        generated_email: str = None,
+        lexi_email: str = None,
+        lucas_email: str = None,
+        networking_email: str = None,
+        processing_time_seconds: float = 0.0,
+        cost_usd: float = 0.0,
         llm_model: str = "gpt-4o-mini",
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
@@ -227,7 +230,16 @@ class GeneratedEmailService:
                     logger.error(f"Email with UUID {placeholder_uuid} not found")
                     return False
                 
-                email.generated_email = generated_email
+                # Update email content (supports both legacy single email and new 3-column format)
+                if generated_email is not None:
+                    email.generated_email = generated_email
+                if lexi_email is not None:
+                    email.lexi_email = lexi_email
+                if lucas_email is not None:
+                    email.lucas_email = lucas_email
+                if networking_email is not None:
+                    email.networking_email = networking_email
+                    
                 email.llm_model_used = llm_model
                 email.prompt_tokens = prompt_tokens
                 email.completion_tokens = completion_tokens
@@ -235,7 +247,10 @@ class GeneratedEmailService:
                 email.processing_time_seconds = processing_time_seconds
                 email.cost_usd = cost_usd
                 email.error_message = error_message
-                email.status = 'completed' if generated_email and not error_message else 'failed'
+                
+                # Check if any email content was generated
+                has_content = any([generated_email, lexi_email, lucas_email, networking_email])
+                email.status = 'completed' if has_content and not error_message else 'failed'
                 email.processing_completed_at = datetime.utcnow()
                 
                 return True

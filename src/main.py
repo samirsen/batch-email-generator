@@ -717,7 +717,7 @@ async def download_csv_with_placeholders(request_id: str):
         if not emails:
             raise HTTPException(status_code=404, detail="No emails found for this request")
         
-        # Create DataFrame from database records
+        # Create DataFrame from database records with 3-column support
         email_data = []
         for email in emails:
             email_data.append({
@@ -726,7 +726,9 @@ async def download_csv_with_placeholders(request_id: str):
                 'linkedin_url': email.linkedin_url,
                 'intelligence': email.intelligence_used,
                 'template_type': email.template_type,
-                'generated_email': email.generated_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}"
+                'lexi_email': email.lexi_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}",
+                'lucas_email': email.lucas_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}",
+                'networking_email': email.networking_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}"
             })
         
         df = pd.DataFrame(email_data)
