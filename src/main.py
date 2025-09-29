@@ -9,6 +9,7 @@ import asyncio
 import os
 import json
 import logging
+import uuid
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 
@@ -501,7 +502,7 @@ async def generate_emails(
         print(f"   Template LLM emails: {len(template_rows)} (background)")
         print(f"   AI research emails: {len(ai_rows)} (background)")
         
-        # Create database records and placeholders
+        # Create database records and placeholders for 3-column generation
         all_placeholders, all_uuid_mapping = create_database_records_and_placeholders(
             request_id=request_id,
             original_filename=file.filename,
@@ -511,16 +512,25 @@ async def generate_emails(
             file_size_bytes=len(contents),
             template_type=template_type
         )
-        generated_emails = merge_results_in_order(df, all_placeholders)
+        
+        # Add 3 email columns with placeholders
+        template_types = [TemplateType.LEXI, TemplateType.LUCAS, TemplateType.NETWORKING]
+        template_columns = ['lexi_email', 'lucas_email', 'networking_email']
+        
+        for i, row in df.iterrows():
+            # Get UUID for this row
+            row_uuid = all_uuid_mapping.get(row.name, str(uuid.uuid4()))
+            
+            # Add placeholders for all 3 email columns
+            for template_type, column_name in zip(template_types, template_columns):
+                processing_type = "AI_PROCESSING" if row.get('intelligence', False) else "TEMPLATE_LLM_PROCESSING"
+                df.loc[i, column_name] = f"{processing_type}:{row_uuid}_{template_type.value}"
 
-        # Start unified background processing for ALL emails
-        print(f"Starting unified background LLM processing for request {request_id}")
+        # Start unified background processing for ALL emails (3-column generation)
+        print(f"Starting unified background 3-column LLM processing for request {request_id}")
         asyncio.create_task(
             process_all_emails_background(request_id, df, template_type, all_uuid_mapping)
         )
-
-        # Add generated emails to dataframe
-        df['generated_email'] = generated_emails
         
         # Convert dataframe to CSV string
         output = io.StringIO()

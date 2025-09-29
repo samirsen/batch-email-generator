@@ -159,7 +159,7 @@ async def process_all_emails_background(
     uuid_mapping: Optional[dict] = None
 ):
     """
-    Unified background processing for ALL emails (both AI and template now use LLM)
+    Unified background processing for ALL emails with 3-column generation (LEXI, LUCAS, NETWORKING)
     
     Args:
         request_id: Unique identifier for the request
@@ -169,50 +169,71 @@ async def process_all_emails_background(
     """
     try:
         print(f"Starting unified background processing for request {request_id}")
+        print(f"Generating 3 email variations (LEXI, LUCAS, NETWORKING) for {len(all_rows)} rows...")
         start_time = time.time()
         
-        # Split the DataFrame by intelligence column for different processing
-        from .csv_processor import split_dataframe_by_intelligence
-        ai_rows, template_rows = split_dataframe_by_intelligence(all_rows)
+        # Template types for 3-column generation
+        template_types = [TemplateType.LEXI, TemplateType.LUCAS, TemplateType.NETWORKING]
+        template_columns = ['lexi_email', 'lucas_email', 'networking_email']
         
-        # Process both types concurrently using asyncio.gather
-        tasks = []
-        task_types = []
+        # Results storage for all 3 templates
+        all_results = {}
         
-        # Add AI processing task if there are AI rows
-        if not ai_rows.empty:
-            ai_task = process_ai_dataframe(ai_rows, fallback_template_type, request_id, all_rows, uuid_mapping)
-            tasks.append(ai_task)
-            task_types.append("ai")
-        
-        # Add template processing task if there are template rows
-        if not template_rows.empty:
-            template_task = process_template_dataframe(template_rows, fallback_template_type, request_id, all_rows, uuid_mapping)
-            tasks.append(template_task)
-            task_types.append("template")
-        
-        # Run both processing types concurrently
-        if tasks:
-            print(f"Running {len(tasks)} concurrent processing tasks...")
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Process each row for all 3 templates
+        for i, row in all_rows.iterrows():
+            user_info = {
+                'name': row.get('name', ''),
+                'company': row.get('company', ''),
+                'linkedin_url': row.get('linkedin_url', '')
+            }
             
-            # Combine results from both processing types
-            combined_results = {}
-            for task_type, result in zip(task_types, results):
-                if isinstance(result, Exception):
-                    print(f"  {task_type.upper()} processing failed: {result}")
-                    # Continue processing other tasks
-                else:
-                    combined_results.update(result)
-                    print(f"  {task_type.upper()} processing completed with {len(result)} emails")
-        else:
-            combined_results = {}
-            print("No processing tasks to run")
+            print(f"Processing row {i+1}/{len(all_rows)}: {user_info['company']}")
+            
+            # Do Parallel AI research ONCE per company
+            company_data = None
+            try:
+                from .gpt_enrichment import ParallelAIEnrichment
+                enrichment_client = ParallelAIEnrichment()
+                company_data = await enrichment_client.get_company_data(
+                    user_info['company'], 
+                    user_info['linkedin_url']
+                )
+                print(f"✅ Got enriched data for {user_info['company']}")
+                
+            except Exception as e:
+                print(f"❌ Error getting company data for {user_info['company']}: {e}")
+            
+            # Generate emails for each template type using the SAME enriched data
+            row_results = {}
+            for template_type, column_name in zip(template_types, template_columns):
+                try:
+                    from .lexie_prompt import get_ai_email_response
+                    email_content = await get_ai_email_response(
+                        company_name=user_info['company'],
+                        recipient_name=user_info['name'],
+                        template_type=template_type,
+                        company_website=user_info['linkedin_url']
+                    )
+                    
+                    row_results[column_name] = email_content
+                    print(f"✅ Generated {template_type.value} email for {user_info['company']}")
+                        
+                except Exception as e:
+                    error_msg = f"Error generating {template_type.value} email: {str(e)}"
+                    row_results[column_name] = error_msg
+                    print(f"❌ {error_msg}")
+            
+            # Store results for this row
+            all_results[i] = row_results
         
         processing_time = time.time() - start_time
         print(f"Unified background processing completed for request {request_id} in {processing_time:.2f}s")
+        print(f"Generated {len(all_results)} rows × 3 templates = {len(all_results) * 3} total emails")
         
-        # Results already saved incrementally during batch processing - just update request status
+        # Save results to JSON with 3-column structure
+        log_unified_3column_results_to_json(request_id, all_results, all_rows, processing_time, uuid_mapping)
+        
+        # Update request status
         try:
             EmailRequestService.update_request_status(request_id, 'completed', processing_time)
             print(f"✓ Updated request {request_id} status to completed")
@@ -222,7 +243,7 @@ async def process_all_emails_background(
     except Exception as e:
         print(f"Unified background processing failed for request {request_id}: {str(e)}")
         
-        # Log error to JSON (using ai_error function for now, but with all_rows)
+        # Log error to JSON
         log_unified_error_to_json(request_id, e, all_rows)
 
 
@@ -366,6 +387,69 @@ def log_unified_results_to_json_backup(
         
     except Exception as e:
         print(f"Error logging backup JSON results: {str(e)}")
+
+
+def log_unified_3column_results_to_json(
+    request_id: str, 
+    all_results: dict, 
+    original_rows: pd.DataFrame, 
+    processing_time: float, 
+    uuid_mapping: Optional[dict] = None
+):
+    """
+    Log 3-column email results to JSON file
+    
+    Args:
+        request_id: Unique identifier for the request
+        all_results: Dictionary of results with structure {row_index: {lexi_email: str, lucas_email: str, networking_email: str}}
+        original_rows: Original rows DataFrame
+        processing_time: Time taken to process all emails
+        uuid_mapping: Mapping of row indices to UUIDs from CSV placeholders
+    """
+    try:
+        # Prepare structured data
+        log_entry = {
+            "request_id": request_id,
+            "timestamp": datetime.now().isoformat(),
+            "processing_time_seconds": round(processing_time, 2),
+            "total_rows": len(all_results),
+            "total_emails": len(all_results) * 3,  # 3 emails per row
+            "processing_method": "unified_3column_background",
+            "template_types": ["LEXI", "LUCAS", "NETWORKING"],
+            "results": []
+        }
+        
+        # Add each row result
+        for _, row in original_rows.iterrows():
+            row_index = row.name
+            row_uuid = uuid_mapping.get(row_index) if uuid_mapping else str(uuid.uuid4())
+            row_emails = all_results.get(row_index, {})
+            
+            result_data = {
+                "uuid": row_uuid,
+                "row_index": int(row_index) if pd.notna(row_index) else None,
+                "name": str(row['name']),
+                "company": str(row['company']),
+                "linkedin_url": str(row['linkedin_url']),
+                "intelligence_used": bool(row.get('intelligence', False)),
+                "template_type": str(row.get('template_type', '')),
+                "emails": {
+                    "lexi_email": row_emails.get('lexi_email', 'Error: No result generated'),
+                    "lucas_email": row_emails.get('lucas_email', 'Error: No result generated'),
+                    "networking_email": row_emails.get('networking_email', 'Error: No result generated')
+                }
+            }
+            log_entry["results"].append(result_data)
+        
+        # Write to JSON file in root folder
+        filename = f"unified_3column_results_{request_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(log_entry, f, indent=2, ensure_ascii=False)
+        
+        print(f"3-column results logged to {filename}")
+        
+    except Exception as e:
+        print(f"Error logging 3-column results: {str(e)}")
 
 
 def create_ai_placeholders(ai_rows: pd.DataFrame) -> tuple[dict, dict]:
