@@ -1,8 +1,8 @@
 """
-Lexie AI Email Generation Prompt
+Generic AI Email Generation Prompt
 
-AI prompt instructions for generating Lexie template content using the actual template from templates.py
-and company data from sixtyfour_api.py
+AI prompt instructions for generating any template content using templates from templates.py
+and enriched company data from Parallel AI
 """
 
 import os
@@ -11,9 +11,11 @@ from openai import AsyncOpenAI
 try:
     from .templates import TemplateType, get_template_content
     from .sixtyfour_api import get_email_variables, get_portfolio_companies_by_vertical
+    from .utils import get_random_agent_info
 except ImportError:
     from templates import TemplateType, get_template_content
     from sixtyfour_api import get_email_variables, get_portfolio_companies_by_vertical
+    from utils import get_random_agent_info
 
 
 def format_portfolio_companies(portfolio_companies):
@@ -25,17 +27,38 @@ def format_portfolio_companies(portfolio_companies):
     return str(portfolio_companies)
 
 
-def get_lexie_prompt(company_name: str, company_data: dict = None):
-    """Return the Lexie AI prompt that incorporates the actual template and company data"""
-    template_content = get_template_content(TemplateType.LEXI)
+def get_generic_prompt(company_name: str, recipient_name: str, template_type: TemplateType, company_data: dict = None):
+    """Return the AI prompt that incorporates any template and company data"""
+    template_content = get_template_content(template_type)
 
-    # Extract company information for personalization
-    company_vertical = company_data.get("company_vertical", "technology") if company_data else "technology"
+    # Extract company information from raw GPT response
+    if company_data and "structured_data" in company_data:
+        structured_data = company_data["structured_data"]
+        company_vertical = structured_data.get("industry", "technology")
+        company_description = structured_data.get("company_description", "")
+        funding_rounds = structured_data.get("funding_rounds", "")
+        recent_news = structured_data.get("recent_news", "")
+        founded_year = structured_data.get("founded_year", "")
+        findings = company_data.get("findings", [])
+        references = company_data.get("references", {})
+    else:
+        company_vertical = "technology"
+        company_description = ""
+        funding_rounds = ""
+        recent_news = ""
+        founded_year = ""
+        findings = []
+        references = {}
+    
     portfolio_companies = get_portfolio_companies_by_vertical(company_vertical)
     portfolio_companies_str = format_portfolio_companies(portfolio_companies)
+    
+    # Get agent information
+    agent_info = get_random_agent_info()
+    agent_name = agent_info["agent_name"]
 
     return f"""
-You are Lexi, an investor at Sound Ventures, Ashton Kutcher's $1.5bn+ AUM VC firm. Generate a personalized outreach email for startup founders using the following template:
+You are an expert email writer specializing in personalized outreach emails. Use the following template and company information to create a highly personalized email:
 
 TEMPLATE:
 {template_content}
@@ -43,53 +66,57 @@ TEMPLATE:
 COMPANY INFORMATION:
 - Company Name: {company_name}
 - Industry/Vertical: {company_vertical}
+- Company Description: {company_description}
+- Founded Year: {founded_year}
+- Funding Rounds: {funding_rounds}
+- Recent News: {recent_news}
+- Key Findings: {', '.join(findings) if findings else 'None'}
+- Research Sources: {', '.join(references.values()) if references else 'None'}
 - Relevant Portfolio Companies: {portfolio_companies_str}
 
 Based on the recipient's information and company data, generate content for each template variable:
-- name: {{{{name}}}}
-- opening_line: REQUIRED - Brief greeting like "Hope your week is off to a great start!" or "Hope Q1 is wrapping up nicely!"
-- intro_line: Your role/focus at Sound Ventures - should be based on company type (these are examples, adapt as needed):
-  * if company is AI/app-layer: "I lead AI app-layer investing at Sound Ventures, a $2bn+ AUM VC firm led by Ashton Kutcher and Guy Oseary. We've been early investors in {portfolio_companies_str}."
-  * if company is vertical software/health: "I co-lead our vertical software and health tech investing arms at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been early investors in {portfolio_companies_str}."
-  * if company is consumer/e-comm: "I lead our consumer investing at Sound Ventures, a $1bn+ early-stage VC fund founded by Ashton Kutcher and Guy Oseary. We've been active consumer investors for 20 years, backing {portfolio_companies_str}."
-- portfolio: Use these relevant portfolio companies: {portfolio_companies_str}
-- personalization_block: Show you've researched this particular founder/company specifically (these are examples, adapt as needed):
-  * "We've heard amazing things about {company_name} and would love to get to know you ahead of your next round."
-  * "I came across {company_name} in my last role and loved the concept."
-- context_block: Brief context about Sound Ventures' investment focus, especially in {company_vertical} companies
-- cta_block: Clear call-to-action for a call or meeting
+- {{{{name}}}}: Use '{recipient_name}'
+- {{{{company}}}}: Use '{company_name}' 
+- {{{{agent_name}}}}: Use '{agent_name}'
+For templates with additional variables, use the enriched company data to personalize:
+- Use the company description, funding info, and industry to make the email relevant
+- Reference specific company achievements or recent developments when appropriate
+- Match the tone and style of the template provided
 
 Guidelines:
-- Write as Lexi from Sound Ventures
-- Keep tone professional but approachable
-- Focus on {company_vertical} and emerging tech opportunities
-- Demonstrate genuine interest in their specific company ({company_name})
-- Establish credibility through Sound's track record in {company_vertical}
-- Use the provided portfolio companies that are relevant to their vertical
-- Personalize based on company industry and stage
+- Keep tone professional and appropriate for the template style
+- Use the enriched company data to add personalization where possible
+- Ensure all template variables are properly filled
+- Make the email feel genuine and well-researched
+- Follow the structure and style of the provided template
 
-Generate the complete email by filling in all template variables.
+Generate the complete email by replacing all template variables with appropriate content.
 """
 
 
-async def get_lexie_response(company_name: str, recipient_name: str, company_website: str = None):
-    """Get OpenAI response using the Lexie prompt with company enrichment"""
+async def get_ai_email_response(company_name: str, recipient_name: str, template_type: TemplateType, company_website: str = None):
+    """Get OpenAI response using any template with company enrichment"""
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY environment variable not set")
 
     client = AsyncOpenAI(api_key=api_key)
 
-    # Try to get enriched company data
+    # Try to get raw enriched company data from Parallel AI
     company_data = None
     if company_website:
         try:
-            company_data = await get_email_variables(company_name, company_website)
+            try:
+                from .gpt_enrichment import ParallelAIEnrichment
+            except ImportError:
+                from src.gpt_enrichment import ParallelAIEnrichment
+            enrichment_client = ParallelAIEnrichment()
+            company_data = await enrichment_client.get_company_data(company_name, company_website)
         except Exception as e:
             print(f"Error getting company enrichment: {e}")
 
     # Get the prompt
-    prompt = get_lexie_prompt(company_name, company_data)
+    prompt = get_generic_prompt(company_name, recipient_name, template_type, company_data)
 
     try:
         response = await client.chat.completions.create(
@@ -98,9 +125,9 @@ async def get_lexie_response(company_name: str, recipient_name: str, company_web
                 {
                     "role": "user",
                     "content": (
-                        f"You are Lexi, an investor at Sound Ventures. "
                         f"Generate a personalized outreach email for {recipient_name} at {company_name}. "
-                        f"Replace {{{{name}}}} with '{recipient_name}' in the final email.\n\n{prompt}"
+                        f"Use the template and company information provided. "
+                        f"Replace any {{{{name}}}} placeholders with '{recipient_name}' in the final email.\n\n{prompt}"
                     ),
                 }
             ],
@@ -118,5 +145,11 @@ async def get_lexie_response(company_name: str, recipient_name: str, company_web
 
     except Exception as e:
         raise Exception(f"OpenAI API error: {str(e)}")
+
+
+# Backwards compatibility function for Lexie
+async def get_lexie_response(company_name: str, recipient_name: str, company_website: str = None):
+    """Backwards compatibility wrapper for Lexie template"""
+    return await get_ai_email_response(company_name, recipient_name, TemplateType.LEXI, company_website)
 
 
