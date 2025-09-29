@@ -480,6 +480,39 @@
             font-weight: 700;
         }
 
+        /* Upload Progress Bar Styles */
+        .upload-progress-container {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 212, 170, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 212, 170, 0.15);
+        }
+
+        .upload-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 50px;
+            overflow: hidden;
+            margin-bottom: 0.75rem;
+        }
+
+        .upload-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            transition: width 0.3s ease;
+            border-radius: 50px;
+            box-shadow: 0 2px 8px rgba(0, 212, 170, 0.3);
+        }
+
+        .upload-progress-text {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -542,6 +575,13 @@
                                 </div>
                             </div>
 
+                            <!-- Upload Progress Bar -->
+                            <div id="uploadProgressContainer" class="upload-progress-container hidden">
+                                <div class="upload-progress-bar">
+                                    <div id="uploadProgressFill" class="upload-progress-fill" style="width: 0%"></div>
+                                </div>
+                                <div id="uploadProgressText" class="upload-progress-text">Uploading... 0%</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -549,8 +589,8 @@
                 <div class="form-group">
                     <label class="form-label" for="templateType">Email Template</label>
                     <select id="templateType" class="form-input">
-                        <option value="lucas">Lucas</option>
                         <option value="lexie">Lexie</option>
+                        <option value="lucas">Lucas</option>
                         <option value="zach">Zach</option>
                         <option value="sales_outreach">Sales Outreach</option>
                         <option value="recruitment">Recruitment</option>
@@ -748,6 +788,7 @@
             const uploadBtnText = document.getElementById('uploadBtnText');
             const uploadSpinner = document.getElementById('uploadSpinner');
             const templateSelect = document.getElementById('templateType');
+            const uploadProgressContainer = document.getElementById('uploadProgressContainer');
             
             // Re-enable upload button and form elements
             uploadBtn.disabled = false;
@@ -761,6 +802,9 @@
             // Reset button state
             uploadBtnText.textContent = 'Start Processing';
             uploadSpinner.classList.add('hidden');
+            
+            // Hide upload progress bar
+            uploadProgressContainer.classList.add('hidden');
         }
 
         async function uploadAndProcess() {
@@ -774,6 +818,9 @@
             const uploadBtn = document.getElementById('uploadBtn');
             const uploadBtnText = document.getElementById('uploadBtnText');
             const uploadSpinner = document.getElementById('uploadSpinner');
+            const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+            const uploadProgressFill = document.getElementById('uploadProgressFill');
+            const uploadProgressText = document.getElementById('uploadProgressText');
 
             if (!fileInput.files[0]) {
                 // Highlight the drop zone to draw attention
@@ -792,39 +839,84 @@
             // Set processing state and disable UI
             isProcessing = true;
             uploadBtn.disabled = true;
-            uploadBtnText.textContent = 'Processing...';
+            uploadBtnText.textContent = 'Uploading...';
             uploadSpinner.classList.remove('hidden');
+
+            // Show upload progress bar
+            uploadProgressContainer.classList.remove('hidden');
+            uploadProgressFill.style.width = '0%';
+            uploadProgressText.textContent = 'Uploading... 0%';
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             formData.append('template_type', templateType);
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/upload-and-process`, {
-                    method: 'POST',
-                    body: formData
-                });
+            // Use XMLHttpRequest for upload progress tracking
+            const xhr = new XMLHttpRequest();
 
-                const result = await response.json();
-
-                if (response.ok) {
-                    currentRequestId = result.request_id;
-                    totalEmails = result.processing_info.total_emails;
-                    
-                    // Disable the entire upload UI during processing
-                    disableUploadUI();
-                    
-                    showProcessingState();
-                    connectToSSE(currentRequestId);
-                } else {
-                    throw new Error(result.detail || 'Upload failed');
+            // Track upload progress
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    uploadProgressFill.style.width = percentComplete + '%';
+                    uploadProgressText.textContent = `Uploading... ${percentComplete}%`;
                 }
-            } catch (error) {
-                alert(`Upload failed: ${error.message}`);
-                // Re-enable UI on upload error
+            });
+
+            // Handle upload completion
+            xhr.addEventListener('load', function() {
+                try {
+                    const result = JSON.parse(xhr.responseText);
+
+                    if (xhr.status === 200) {
+                        // Upload completed successfully
+                        uploadProgressText.textContent = 'Upload completed! Processing emails...';
+                        uploadBtnText.textContent = 'Processing...';
+                        
+                        currentRequestId = result.request_id;
+                        totalEmails = result.processing_info.total_emails;
+                        
+                        // Hide upload progress and show processing state
+                        setTimeout(() => {
+                            uploadProgressContainer.classList.add('hidden');
+                            disableUploadUI();
+                            showProcessingState();
+                            connectToSSE(currentRequestId);
+                        }, 1000);
+                        
+                    } else {
+                        throw new Error(result.detail || 'Upload failed');
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    alert(`Upload failed: ${error.message}`);
+                    
+                    // Reset UI on error
+                    uploadProgressContainer.classList.add('hidden');
+                    isProcessing = false;
+                    enableUploadUI();
+                }
+            });
+
+            // Handle upload errors
+            xhr.addEventListener('error', function() {
+                alert('Upload failed due to network error');
+                uploadProgressContainer.classList.add('hidden');
                 isProcessing = false;
                 enableUploadUI();
-            }
+            });
+
+            // Handle upload abort
+            xhr.addEventListener('abort', function() {
+                alert('Upload was cancelled');
+                uploadProgressContainer.classList.add('hidden');
+                isProcessing = false;
+                enableUploadUI();
+            });
+
+            // Send the request
+            xhr.open('POST', `${API_BASE_URL}/upload-and-process`);
+            xhr.send(formData);
         }
 
         function showProcessingState() {
