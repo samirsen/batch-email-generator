@@ -226,7 +226,8 @@ async def process_all_emails_background(
                     company_name=user_info['company'],
                     recipient_name=user_info['name'],
                     template_type=template_type,
-                    company_website=user_info['linkedin_url']
+                    company_website=user_info['linkedin_url'],
+                    company_data=company_data
                 )
                 email_tasks.append((template_type, task))
             

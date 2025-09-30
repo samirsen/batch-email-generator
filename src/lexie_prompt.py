@@ -94,7 +94,7 @@ Generate the complete email by replacing all template variables with appropriate
 """
 
 
-async def get_ai_email_response(company_name: str, recipient_name: str, template_type: TemplateType, company_website: str = None):
+async def get_ai_email_response(company_name: str, recipient_name: str, template_type: TemplateType, company_website: str = None, company_data: dict = None):
     """Get OpenAI response using any template with company enrichment"""
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -102,9 +102,9 @@ async def get_ai_email_response(company_name: str, recipient_name: str, template
 
     client = AsyncOpenAI(api_key=api_key)
 
-    # Try to get raw enriched company data from Parallel AI
-    company_data = None
-    if company_website:
+    # Use pre-fetched company data if provided, otherwise fetch it
+    if company_data is None and company_website:
+        print(f"⚠️  No pre-fetched data provided, making API call for {company_name}")
         try:
             try:
                 from .gpt_enrichment import ParallelAIEnrichment
@@ -114,6 +114,8 @@ async def get_ai_email_response(company_name: str, recipient_name: str, template
             company_data = await enrichment_client.get_company_data(company_name, company_website)
         except Exception as e:
             print(f"Error getting company enrichment: {e}")
+    elif company_data:
+        print(f"✅ Using pre-fetched company data for {company_name}")
 
     # Get the prompt
     prompt = get_generic_prompt(company_name, recipient_name, template_type, company_data)
