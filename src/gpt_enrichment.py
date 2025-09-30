@@ -10,36 +10,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 PARALLEL_AI_API_KEY = os.getenv("PARALLEL_AI_API_KEY", "")
 
 
-def generate_tldr_block(company_data: Dict[str, Any], funding_rounds: str = "") -> str:
-    """
-    Generate a TLDR block about what the sender wants to say/offer
-    
-    Args:
-        company_data: Company data dictionary
-        funding_rounds: Funding rounds string
-        
-    Returns:
-        TLDR string about the investment opportunity and timing
-    """
-    industry = company_data.get("industry", "technology")
-    
-    # Create a relevant investment pitch based on company characteristics
-    tldr_parts = []
-    
-    # Base investment thesis
-    tldr_parts.append(f"We're actively investing in {industry.lower()} companies")
-    
-    # Add funding stage relevance
-    if funding_rounds and any(stage in funding_rounds.lower() for stage in ["seed", "series a", "early stage"]):
-        tldr_parts.append("perfect timing for early-stage partnerships")
-    else:
-        tldr_parts.append("looking for growth-stage opportunities")
-    
-    # Add portfolio value prop
-    tldr_parts.append("can connect you with our portfolio companies and provide strategic guidance")
-    
-    # Join with commas and add TLDR prefix
-    return "TLDR: " + ", ".join(tldr_parts) + "."
 
 
 
@@ -142,7 +112,7 @@ class ParallelAIEnrichment:
                     print(f"Parallel AI response status: {response.status}")
                     if response.status == 200:
                         data = await response.json()
-                        print("Parallel AI response:", data)
+                        print("Parallel AI response:", str(data)[:100] + ("..." if len(str(data)) > 100 else ""))
                         return data
                     else:
                         error_text = await response.text()
