@@ -16,6 +16,7 @@ from .linkedin_research import research_linkedin_profile
 from .ai_generator import generate_ai_email, generate_ai_email_from_template
 from .utils import create_batches
 from .database.services import GeneratedEmailService
+from .sixtyfour_api import get_email_variables
 
 
 # Configuration
@@ -186,6 +187,86 @@ async def generate_intelligent_email(row: pd.Series, fallback_template_type: Opt
             return await generate_template_email(row, fallback_template_type)
         else:
             return f"Error in AI email generation: {str(e)}"
+
+
+async def generate_template_email_with_data(row: pd.Series, fallback_template_type: Optional[TemplateType] = None, company_data: Dict[str, Any] = None) -> str:
+    """
+    Generate LLM-based email using template with pre-fetched company data
+    
+    Args:
+        row: DataFrame row containing contact information
+        fallback_template_type: Template type to use when row template_type is empty
+        company_data: Pre-fetched company data to avoid API calls
+        
+    Returns:
+        LLM-generated email content based on template
+    """
+    try:
+        # Determine template type for this row
+        row_template_type = row.get('template_type')
+        
+        if row_template_type and row_template_type.strip():
+            try:
+                template_type = TemplateType(row_template_type.strip())
+            except (ValueError, AttributeError):
+                template_type = fallback_template_type
+        else:
+            template_type = fallback_template_type
+        
+        # Create user info for LLM generation
+        user_info = {
+            'name': str(row.get('name', '')),
+            'company': str(row.get('company', '')),
+            'linkedin_url': str(row.get('linkedin_url', ''))
+        }
+        
+        # Get template type as string for LLM prompt
+        template_type_str = template_type.value if template_type else 'lucas'
+        
+        # If using Lucas template, use pre-fetched company data
+        if template_type_str == 'lucas':
+            # Use pre-fetched company data instead of API call
+            if not company_data:
+                company_data = await get_email_variables(user_info['company'])
+            
+            # Get template content
+            template_content = get_template_content(template_type)
+            
+            # Prepare context for template rendering
+            context = {
+                'name': user_info['name'],
+                'company_name': user_info['company'],
+                'app_layer': company_data.get('app_layer', False),
+                'company_vertical': company_data.get('company_vertical', 'technology'),
+                'one_liner': company_data.get('one_liner', 'Congrats on everything to-date.'),
+                'portfolio_companies': company_data.get('portfolio_companies', 'Airbnb, Spotify, and Uber'),
+                'include_tldr': company_data.get('include_tldr', False),
+                'tldr_block': company_data.get('tldr_block', '')
+            }
+            
+            # Render the template with the context
+            email_content = await render_email_template(template_content, context)
+            return email_content
+        else:
+            # Use LLM to generate email based on template (no LinkedIn research)
+            ai_result = await generate_ai_email_from_template(user_info, template_type_str)
+            
+            if ai_result.status.value == "success":
+                return ai_result.email_content or "[Template LLM generation succeeded but no content returned]"
+            else:
+                # Fallback to static template if LLM fails
+                if AI_FALLBACK_TO_TEMPLATE:
+                    print(f"Template LLM generation failed ({ai_result.error_message}), falling back to static template for {user_info['name']}")
+                    return await generate_static_template_email(row, fallback_template_type)
+                else:
+                    return f"Template LLM generation failed: {ai_result.error_message}"
+    
+    except Exception as e:
+        if AI_FALLBACK_TO_TEMPLATE:
+            print(f"Unexpected error in template LLM generation ({str(e)}), falling back to static template")
+            return await generate_static_template_email(row, fallback_template_type)
+        else:
+            return f"Error in template LLM generation: {str(e)}"
 
 
 async def generate_template_email(row: pd.Series, fallback_template_type: Optional[TemplateType] = None) -> str:
@@ -428,10 +509,20 @@ async def process_template_dataframe(template_df: pd.DataFrame, fallback_templat
         batch_start = time.time()
         print(f"    Template LLM batch {batch_idx}/{len(template_batches)} ({len(batch_df)} rows) - starting...")
         
-        # Process template LLM batch with concurrent tasks
-        batch_tasks = []
+        # Step 1: Pre-fetch ALL company data in parallel
+        print(f"      Pre-fetching company data for {len(batch_df)} companies in parallel...")
+        company_data_tasks = []
         for _, row in batch_df.iterrows():
-            task = generate_template_email(row, fallback_template_type)
+            company_data_tasks.append(get_email_variables(row.get('company', '')))
+        
+        company_data_results = await asyncio.gather(*company_data_tasks, return_exceptions=True)
+        
+        # Step 2: Process template LLM batch with pre-fetched data
+        batch_tasks = []
+        for i, (_, row) in enumerate(batch_df.iterrows()):
+            # Use pre-fetched company data (handle exceptions)
+            company_data = company_data_results[i] if not isinstance(company_data_results[i], Exception) else {}
+            task = generate_template_email_with_data(row, fallback_template_type, company_data)
             batch_tasks.append((row.name, task))
         
         batch_results = await asyncio.gather(*[task for _, task in batch_tasks])
