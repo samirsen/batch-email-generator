@@ -1030,7 +1030,7 @@
                     ${isSuccess ? ` | Cost: $${emailData.cost_usd?.toFixed(4) || '0.0000'}` : ''}
                 </div>
                 <div class="email-content">
-                    ${isSuccess ? emailData.generated_email : `Error: ${emailData.error_message}`}
+                    ${isSuccess ? (emailData.generated_email || emailData.lexi_email || emailData.lucas_email || emailData.networking_email || 'No email content') : `Error: ${emailData.error_message}`}
                 </div>
             `;
             

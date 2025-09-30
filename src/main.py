@@ -841,6 +841,9 @@ async def get_email_by_uuid(email_uuid: str):
             "name": email.name,
             "company": email.company,
             "generated_email": email.generated_email,
+            "lexi_email": email.lexi_email,
+            "lucas_email": email.lucas_email,
+            "networking_email": email.networking_email,
             "status": email.status,
             "processing_type": email.processing_type,
             "total_tokens": email.total_tokens,
@@ -996,13 +999,28 @@ async def get_request_details(request_id: str):
             # Convert to dict
             successful_emails = []
             for email in successful_samples:
+                # Get best available email content (prefer 3-column format, fallback to legacy)
+                email_content = None
+                if email.lexi_email:
+                    email_content = email.lexi_email
+                elif email.lucas_email:
+                    email_content = email.lucas_email
+                elif email.networking_email:
+                    email_content = email.networking_email
+                elif email.generated_email:
+                    email_content = email.generated_email
+                
+                # Truncate for preview
+                if email_content and len(email_content) > 200:
+                    email_content = email_content[:200] + '...'
+                
                 successful_emails.append({
                     'email_id': email.id,
                     'placeholder_uuid': str(email.placeholder_uuid) if email.placeholder_uuid else None,
                     'name': email.name,
                     'company': email.company,
                     'template_type': email.template_type,
-                    'generated_email': email.generated_email[:200] + '...' if email.generated_email and len(email.generated_email) > 200 else email.generated_email,
+                    'generated_email': email_content,
                     'processing_time_seconds': float(email.processing_time_seconds) if email.processing_time_seconds else 0,
                     'cost_usd': float(email.cost_usd) if email.cost_usd else 0
                 })
