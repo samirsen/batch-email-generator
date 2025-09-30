@@ -179,56 +179,91 @@ async def process_all_emails_background(
         # Results storage for all 3 templates
         all_results = {}
         
-        # Process each row for all 3 templates
+        # Step 1: Research ALL companies in parallel
+        print("Step 1: Researching all companies in parallel...")
+        research_tasks = []
+        user_infos = []
+        
         for i, row in all_rows.iterrows():
             user_info = {
                 'name': row.get('name', ''),
                 'company': row.get('company', ''),
                 'linkedin_url': row.get('linkedin_url', '')
             }
+            user_infos.append((i, user_info))
             
-            print(f"Processing row {i+1}/{len(all_rows)}: {user_info['company']}")
+            # Create parallel research task
+            from .gpt_enrichment import ParallelAIEnrichment
+            enrichment_client = ParallelAIEnrichment()
+            task = enrichment_client.get_company_data(
+                user_info['company'], 
+                user_info['linkedin_url']
+            )
+            research_tasks.append(task)
+        
+        # Execute all research in parallel
+        company_data_results = await asyncio.gather(*research_tasks, return_exceptions=True)
+        print(f"✅ Completed parallel research for {len(company_data_results)} companies")
+        
+        # Step 2: Generate ALL emails using pre-fetched data
+        print("Step 2: Generating all emails using pre-fetched company data...")
+        
+        async def process_single_row(row_index, user_info, company_data):
+            """Process a single row with all 3 email types in parallel"""
+            print(f"Processing row {row_index+1}/{len(all_rows)}: {user_info['company']}")
             
-            # Do Parallel AI research ONCE per company
-            company_data = None
-            try:
-                from .gpt_enrichment import ParallelAIEnrichment
-                enrichment_client = ParallelAIEnrichment()
-                company_data = await enrichment_client.get_company_data(
-                    user_info['company'], 
-                    user_info['linkedin_url']
+            if isinstance(company_data, Exception):
+                print(f"❌ Error getting company data for {user_info['company']}: {company_data}")
+                company_data = None
+            else:
+                print(f"✅ Using pre-fetched data for {user_info['company']}")
+            
+            # Generate all 3 email types in parallel for this row
+            email_tasks = []
+            for template_type in template_types:
+                from .lexie_prompt import get_ai_email_response
+                task = get_ai_email_response(
+                    company_name=user_info['company'],
+                    recipient_name=user_info['name'],
+                    template_type=template_type,
+                    company_website=user_info['linkedin_url']
                 )
-                print(f"✅ Got enriched data for {user_info['company']}")
-                
-            except Exception as e:
-                print(f"❌ Error getting company data for {user_info['company']}: {e}")
+                email_tasks.append((template_type, task))
             
-            # Generate emails for each template type using the SAME enriched data
+            # Wait for all 3 emails for this row
+            email_results = await asyncio.gather(*[task for _, task in email_tasks], return_exceptions=True)
+            
+            # Build row results
             row_results = {}
-            for template_type, column_name in zip(template_types, template_columns):
-                try:
-                    from .lexie_prompt import get_ai_email_response
-                    email_content = await get_ai_email_response(
-                        company_name=user_info['company'],
-                        recipient_name=user_info['name'],
-                        template_type=template_type,
-                        company_website=user_info['linkedin_url']
-                    )
-                    
+            for (template_type, _), email_content in zip(email_tasks, email_results):
+                column_name = template_columns[template_types.index(template_type)]
+                
+                if isinstance(email_content, Exception):
+                    error_msg = f"Error generating {template_type.value} email: {str(email_content)}"
+                    row_results[column_name] = error_msg
+                    print(f"❌ {error_msg}")
+                else:
                     row_results[column_name] = email_content
                     print(f"✅ Generated {template_type.value} email for {user_info['company']}")
                     print(f"📧 EMAIL CONTENT for {user_info['name']} at {user_info['company']} ({template_type.value}):")
                     print("=" * 60)
                     print(email_content)
                     print("=" * 60)
-                        
-                except Exception as e:
-                    error_msg = f"Error generating {template_type.value} email: {str(e)}"
-                    row_results[column_name] = error_msg
-                    print(f"❌ {error_msg}")
             
-            # Store results for this row
-            all_results[i] = row_results
+            return row_index, row_results
+        
+        # Process all rows in parallel
+        row_tasks = []
+        for (row_index, user_info), company_data in zip(user_infos, company_data_results):
+            task = process_single_row(row_index, user_info, company_data)
+            row_tasks.append(task)
+        
+        # Execute all row processing in parallel
+        row_results_list = await asyncio.gather(*row_tasks)
+        
+        # Collect results
+        for row_index, row_results in row_results_list:
+            all_results[row_index] = row_results
         
         processing_time = time.time() - start_time
         print(f"Unified background processing completed for request {request_id} in {processing_time:.2f}s")
