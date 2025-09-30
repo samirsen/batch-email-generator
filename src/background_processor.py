@@ -179,8 +179,8 @@ async def process_all_emails_background(
         # Results storage for all 3 templates
         all_results = {}
         
-        # Step 1: Research ALL companies in parallel
-        print("Step 1: Researching all companies in parallel...")
+        # Step 1: Research ALL companies in parallel (Parallel AI + GPT together)
+        print("Step 1: Researching all companies in parallel (Parallel AI + GPT)...")
         research_tasks = []
         user_infos = []
         
@@ -192,7 +192,7 @@ async def process_all_emails_background(
             }
             user_infos.append((i, user_info))
             
-            # Create parallel research task
+            # Create parallel research task - complete Parallel AI + GPT for each company
             from .gpt_enrichment import ParallelAIEnrichment
             enrichment_client = ParallelAIEnrichment()
             task = enrichment_client.get_company_data(
@@ -201,7 +201,7 @@ async def process_all_emails_background(
             )
             research_tasks.append(task)
         
-        # Execute all research in parallel
+        # Execute all company research in parallel (each does Parallel AI + GPT)
         company_data_results = await asyncio.gather(*research_tasks, return_exceptions=True)
         print(f"✅ Completed parallel research for {len(company_data_results)} companies")
         

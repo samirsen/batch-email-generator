@@ -172,7 +172,7 @@ class ParallelAIEnrichment:
         
         return "\n\n".join(content_parts)
     
-    def _process_with_gpt(self, raw_content: str, company_name: str) -> Optional[Dict[str, Any]]:
+    async def _process_with_gpt(self, raw_content: str, company_name: str) -> Optional[Dict[str, Any]]:
         """Process Parallel AI raw content with GPT to create structured response"""
         try:
             if not OPENAI_API_KEY:
@@ -220,17 +220,17 @@ Guidelines:
 - If no specific sources available, use empty object {{}}
 """
 
-            # Make sync call to GPT
-            from openai import OpenAI
+            # Make async call to GPT
+            import openai
             
-            print(f"Attempting GPT post-processing...")
+            print(f"🔄 Attempting GPT post-processing for {company_name}...")
             
-            client = OpenAI(
+            client = openai.AsyncOpenAI(
                 api_key=OPENAI_API_KEY,
                 timeout=30.0
             )
             
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
                 messages=[
                     {
@@ -245,7 +245,7 @@ Guidelines:
             
             raw_content = response.choices[0].message.content.strip()
             
-            print(f"📥 RAW GPT RESPONSE:")
+            print(f"📥 RAW GPT RESPONSE for {company_name}:")
             print("=" * 50)
             print(raw_content)
             print("=" * 50)
