@@ -1143,6 +1143,17 @@ async def stream_request_progress(request_id: str):
                         
                         # Send each completed email as separate event
                         for email in new_emails:
+                            # Get best available email content (prefer 3-column format, fallback to legacy)
+                            email_content = None
+                            if email.lexi_email:
+                                email_content = email.lexi_email
+                            elif email.lucas_email:
+                                email_content = email.lucas_email
+                            elif email.networking_email:
+                                email_content = email.networking_email
+                            elif email.generated_email:
+                                email_content = email.generated_email
+                            
                             email_data = {
                                 'type': 'email_completed',
                                 'request_id': request_id,
@@ -1152,7 +1163,10 @@ async def stream_request_progress(request_id: str):
                                     'name': email.name,
                                     'company': email.company,
                                     'linkedin_url': email.linkedin_url,
-                                    'generated_email': email.generated_email,
+                                    'generated_email': email_content,
+                                    'lexi_email': email.lexi_email,
+                                    'lucas_email': email.lucas_email,
+                                    'networking_email': email.networking_email,
                                     'processing_time_seconds': float(email.processing_time_seconds) if email.processing_time_seconds else None,
                                     'template_type': email.template_type,
                                     'intelligence_used': email.intelligence_used,
