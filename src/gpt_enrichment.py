@@ -54,7 +54,7 @@ class ParallelAIEnrichment:
             response = await self._call_parallel_ai_api(objective)
             
             if response:
-                return self._format_parallel_response(response, company_name)
+                return await self._format_parallel_response(response, company_name)
             else:
                 return self._fallback_response(company_name)
                 
@@ -123,14 +123,14 @@ class ParallelAIEnrichment:
             print(f"Parallel AI API error: {e}")
             return None
     
-    def _format_parallel_response(self, parallel_response: Dict[str, Any], company_name: str) -> Dict[str, Any]:
+    async def _format_parallel_response(self, parallel_response: Dict[str, Any], company_name: str) -> Dict[str, Any]:
         """Format Parallel AI response to match SixtyFour API structure"""
         
         # Extract the raw content from Parallel AI response
         raw_content = self._extract_raw_content(parallel_response)
         
         # Use GPT to structure the raw content
-        structured_response = self._process_with_gpt(raw_content, company_name)
+        structured_response = await self._process_with_gpt(raw_content, company_name)
         
         if structured_response:
             return structured_response
