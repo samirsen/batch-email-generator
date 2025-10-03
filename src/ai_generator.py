@@ -25,7 +25,7 @@ from openai import AsyncOpenAI
 from .linkedin_research import ResearchResult, ProfileData, ResearchStatus
 from .templates import TemplateType, EMAIL_TEMPLATES
 from .utils import get_random_agent_info
-from .lexie_prompt import get_lexie_response
+from .lexie_prompt import get_lexie_response, get_ai_email_response
 
 
 class GenerationStatus(Enum):
@@ -215,30 +215,42 @@ Write the personalized {template_type.replace('_', ' ')} email from {agent_name}
         start_time = asyncio.get_event_loop().time()
         
         
-        # Special handling for Lexi template
-        if template_type == 'lexi' or template_type == TemplateType.LEXI:
-            try:
-                email_content = await get_lexie_response(
-                    company_name=user_info.get('company', ''),
-                    recipient_name=user_info.get('name', ''),
-                    company_website=user_info.get('linkedin_url', '')
-                )
+        # Use generic AI email generation for all templates
+        try:
+            print(f"🔄 AI generation starting for {user_info.get('name', '')} at {user_info.get('company', '')} using template: {template_type}")
+            
+            # Convert template_type to TemplateType enum if it's a string
+            if isinstance(template_type, str):
+                template_enum = TemplateType(template_type.lower())
+            else:
+                template_enum = template_type
                 
-                return GenerationResult(
-                    status=GenerationStatus.SUCCESS,
-                    email_content=email_content,
-                    tokens_used=0,  # Handled by lexie_prompt module
-                    generation_time_seconds=asyncio.get_event_loop().time() - start_time,
-                    model_used=self.model,
-                    fallback_used=False
-                )
-                
-            except Exception as e:
-                return GenerationResult(
-                    status=GenerationStatus.FAILED,
-                    error_message=f"Lexi generation error: {str(e)}",
-                    generation_time_seconds=asyncio.get_event_loop().time() - start_time
-                )
+            print(f"🔄 Calling get_ai_email_response with template: {template_enum.value}")
+            
+            email_content = await get_ai_email_response(
+                company_name=user_info.get('company', ''),
+                recipient_name=user_info.get('name', ''),
+                template_type=template_enum,
+                company_website=user_info.get('linkedin_url', '')
+            )
+            
+            print(f"✅ AI generation completed successfully for {user_info.get('name', '')}")
+            
+            return GenerationResult(
+                status=GenerationStatus.SUCCESS,
+                email_content=email_content,
+                tokens_used=0,  # Handled by lexie_prompt module
+                generation_time_seconds=asyncio.get_event_loop().time() - start_time,
+                model_used=self.model,
+                fallback_used=False
+            )
+            
+        except Exception as e:
+            return GenerationResult(
+                status=GenerationStatus.FAILED,
+                error_message=f"AI generation error: {str(e)}",
+                generation_time_seconds=asyncio.get_event_loop().time() - start_time
+            )
         
         # Validate configuration for other templates
         is_valid, error_msg = self.validate_configuration()

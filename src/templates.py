@@ -238,9 +238,12 @@ We've been early investors in generational companies like {{ portfolio_companies
 
 AI x {{ company_vertical }} is our #1 focus currently and we've heard exceptionally positive things about you/{{ company_name }}. {{ one_liner }}
 
-{% if include_tldr %}
+
+{# Example: TLDR on Sound: we have a long track record of supporting businesses via an expansive commercial and celebrity network, hiring partnerships, branding/storytelling expertise, unique foundation model relationships, and more. #}
+{% if tldr_block -%}
 {{ tldr_block }}
-{% endif %}
+{%- endif %}
+
 
 I'd love to hop on a call to learn about where you're headed and introduce you to Sound. 
 

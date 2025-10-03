@@ -9,6 +9,7 @@ import asyncio
 import os
 import json
 import logging
+import uuid
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 
@@ -25,6 +26,9 @@ from .templates import (
     get_all_templates,
     get_template_info
 )
+
+# Import AI generation
+from .ai_generator import AIEmailGenerator, GenerationStatus
 
 # Import modular components
 from .csv_processor import (
@@ -498,7 +502,7 @@ async def generate_emails(
         print(f"   Template LLM emails: {len(template_rows)} (background)")
         print(f"   AI research emails: {len(ai_rows)} (background)")
         
-        # 1. Create database records for request and email placeholders
+        # Create database records and placeholders for 3-column generation
         all_placeholders, all_uuid_mapping = create_database_records_and_placeholders(
             request_id=request_id,
             original_filename=file.filename,
@@ -508,16 +512,25 @@ async def generate_emails(
             file_size_bytes=len(contents),
             template_type=template_type
         )
-        generated_emails = merge_results_in_order(df, all_placeholders)
         
-        # 2. Start unified background processing for ALL emails
-        print(f"Starting unified background LLM processing for request {request_id}")
+        # Add 3 email columns with placeholders
+        template_types = [TemplateType.LEXI, TemplateType.LUCAS, TemplateType.NETWORKING]
+        template_columns = ['lexi_email', 'lucas_email', 'networking_email']
+        
+        for i, row in df.iterrows():
+            # Get UUID for this row
+            row_uuid = all_uuid_mapping.get(row.name, str(uuid.uuid4()))
+            
+            # Add placeholders for all 3 email columns
+            for template_type, column_name in zip(template_types, template_columns):
+                processing_type = "AI_PROCESSING" if row.get('intelligence', False) else "TEMPLATE_LLM_PROCESSING"
+                df.loc[i, column_name] = f"{processing_type}:{row_uuid}_{template_type.value}"
+
+        # Start unified background processing for ALL emails (3-column generation)
+        print(f"Starting unified background 3-column LLM processing for request {request_id}")
         asyncio.create_task(
             process_all_emails_background(request_id, df, template_type, all_uuid_mapping)
         )
-        
-        # Add generated emails to dataframe
-        df['generated_email'] = generated_emails
         
         # Convert dataframe to CSV string
         output = io.StringIO()
@@ -704,7 +717,7 @@ async def download_csv_with_placeholders(request_id: str):
         if not emails:
             raise HTTPException(status_code=404, detail="No emails found for this request")
         
-        # Create DataFrame from database records
+        # Create DataFrame from database records with 3-column support
         email_data = []
         for email in emails:
             email_data.append({
@@ -713,7 +726,9 @@ async def download_csv_with_placeholders(request_id: str):
                 'linkedin_url': email.linkedin_url,
                 'intelligence': email.intelligence_used,
                 'template_type': email.template_type,
-                'generated_email': email.generated_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}"
+                'lexi_email': email.lexi_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}",
+                'lucas_email': email.lucas_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}",
+                'networking_email': email.networking_email if email.status == 'completed' else f"PROCESSING:{email.placeholder_uuid}"
             })
         
         df = pd.DataFrame(email_data)
@@ -826,6 +841,9 @@ async def get_email_by_uuid(email_uuid: str):
             "name": email.name,
             "company": email.company,
             "generated_email": email.generated_email,
+            "lexi_email": email.lexi_email,
+            "lucas_email": email.lucas_email,
+            "networking_email": email.networking_email,
             "status": email.status,
             "processing_type": email.processing_type,
             "total_tokens": email.total_tokens,
@@ -981,13 +999,28 @@ async def get_request_details(request_id: str):
             # Convert to dict
             successful_emails = []
             for email in successful_samples:
+                # Get best available email content (prefer 3-column format, fallback to legacy)
+                email_content = None
+                if email.lexi_email:
+                    email_content = email.lexi_email
+                elif email.lucas_email:
+                    email_content = email.lucas_email
+                elif email.networking_email:
+                    email_content = email.networking_email
+                elif email.generated_email:
+                    email_content = email.generated_email
+                
+                # Truncate for preview
+                if email_content and len(email_content) > 200:
+                    email_content = email_content[:200] + '...'
+                
                 successful_emails.append({
                     'email_id': email.id,
                     'placeholder_uuid': str(email.placeholder_uuid) if email.placeholder_uuid else None,
                     'name': email.name,
                     'company': email.company,
                     'template_type': email.template_type,
-                    'generated_email': email.generated_email[:200] + '...' if email.generated_email and len(email.generated_email) > 200 else email.generated_email,
+                    'generated_email': email_content,
                     'processing_time_seconds': float(email.processing_time_seconds) if email.processing_time_seconds else 0,
                     'cost_usd': float(email.cost_usd) if email.cost_usd else 0
                 })
@@ -1110,6 +1143,17 @@ async def stream_request_progress(request_id: str):
                         
                         # Send each completed email as separate event
                         for email in new_emails:
+                            # Get best available email content (prefer 3-column format, fallback to legacy)
+                            email_content = None
+                            if email.lexi_email:
+                                email_content = email.lexi_email
+                            elif email.lucas_email:
+                                email_content = email.lucas_email
+                            elif email.networking_email:
+                                email_content = email.networking_email
+                            elif email.generated_email:
+                                email_content = email.generated_email
+                            
                             email_data = {
                                 'type': 'email_completed',
                                 'request_id': request_id,
@@ -1119,7 +1163,10 @@ async def stream_request_progress(request_id: str):
                                     'name': email.name,
                                     'company': email.company,
                                     'linkedin_url': email.linkedin_url,
-                                    'generated_email': email.generated_email,
+                                    'generated_email': email_content,
+                                    'lexi_email': email.lexi_email,
+                                    'lucas_email': email.lucas_email,
+                                    'networking_email': email.networking_email,
                                     'processing_time_seconds': float(email.processing_time_seconds) if email.processing_time_seconds else None,
                                     'template_type': email.template_type,
                                     'intelligence_used': email.intelligence_used,

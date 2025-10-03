@@ -88,8 +88,11 @@ class GeneratedEmail(Base):
     processing_type = Column(String(50), index=True)  # 'template_llm' or 'ai_with_research'
     placeholder_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, index=True)
     
-    # Generated content
-    generated_email = Column(Text)
+    # Generated content (3-column support)
+    generated_email = Column(Text)  # Legacy field for backwards compatibility
+    lexi_email = Column(Text)
+    lucas_email = Column(Text)
+    networking_email = Column(Text)
     
     # Processing metadata
     status = Column(String(20), default='processing', index=True)  # processing, completed, failed
